@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  data-producer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - kafka
+    volumes:
+      # Mounts your local profiles directory so you can update YAMLs without rebuilding the container!
+      - ./profiles:/root/profiles
+      - ./data_output:/root/output
+    environment:
+      # Point to the Kafka service container within the internal docker network
+      KAFKA_BROKERS: "kafka:29092"
+      SIMULATOR_MODE: "kafka" 
+      OUTPUT_FILE_PATH: "/root/output/generated_telemetry"
