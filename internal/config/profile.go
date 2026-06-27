@@ -2,8 +2,12 @@ package config
 
 import (
 	"fmt"
+	"math"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"gopkg.in/yaml.v3"
 )
 
@@ -124,4 +128,34 @@ func CompileStructuredRule(items []ProfileWeightedItem) (FieldGen, bool, error) 
 	}
 
 	return compileWeightedChoice(items), false, nil
+}
+
+func compileWeightedChoice(items []ProfileWeightedItem) FieldGen {
+	var totalWeight float64
+	for _, item := range items {
+		totalWeight += item.Weight
+	}
+
+	if totalWeight == 0 {
+		return func(r *rand.Rand, s map[string]interface{}) interface{} {
+			return items[r.Intn(len(items))].Value
+		}
+	}
+
+	cdf := make([]float64, len(items))
+	currentSum := 0.0
+	for i, item := range items {
+		currentSum += item.Weight / totalWeight
+		cdf[i] = currentSum
+	}
+
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		val := r.Float64()
+		for i, ceiling := range cdf {
+			if val <= ceiling {
+				return items[i].Value
+			}
+		}
+		return items[len(items)-1].Value
+	}
 }
