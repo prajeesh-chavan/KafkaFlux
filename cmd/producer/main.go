@@ -15,4 +15,8 @@ func main() {
 		fmt.Printf("Initialization Fatal Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	// 2. Setup internal communication channels (Acting as our Internal Ring Buffer)
+	// Decouples stream processing completely from I/O block limits
+	eventChannel := make(chan *engine.DataEvent, 100000)
 }
