@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 
 	"go-kafka-simulator/internal/engine"
@@ -58,8 +59,6 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 
 		var csvWriter *csv.Writer
 		headerWritten := false
-		
-		// This slice acts as our strict structural source-of-truth mapping key sequences
 		var orderedKeys []string
 
 		if fp.format == "csv" {
@@ -83,33 +82,26 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 					var payload map[string]interface{}
 					if err := json.Unmarshal(event.Data, &payload); err == nil {
 						
-						// 1. Establish static column definitions on the very first event entry
+						// 1. Establish static column definitions on the very first entry
 						if !headerWritten {
-							// Check if simulator profile template sequence can provide deterministic ordering
-							if fp.sim != nil && len(fp.sim.Profiles) > 0 {
-								// Extract key order cleanly directly from our compiled execution blueprint pipeline
-								for _, fieldOrder := range fp.sim.Profiles[0].Compiled {
-									orderedKeys = append(orderedKeys, fieldOrder.Name)
-								}
-							} else {
-								// Fallback fallback: collect standard keys if no profile references exist
-								for k := range payload {
-									orderedKeys = append(orderedKeys, k)
-								}
+							for k := range payload {
+								orderedKeys = append(orderedKeys, k)
 							}
+							// Sort columns alphabetically to eliminate map sequence randomness completely!
+							sort.Strings(orderedKeys) 
 							
 							_ = csvWriter.Write(orderedKeys)
 							headerWritten = true
 						}
 
-						// 2. Iterate strictly using the locked key slice sequence to eliminate randomness completely
+						// 2. Iterate using the locked, sorted key sequence
 						var row []string
 						for _, key := range orderedKeys {
 							val, exists := payload[key]
 							if exists {
 								row = append(row, fmt.Sprintf("%v", val))
 							} else {
-								row = append(row, "") // Empty column padding placeholder safety
+								row = append(row, "") 
 							}
 						}
 						
