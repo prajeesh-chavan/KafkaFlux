@@ -1,0 +1,38 @@
+entity: "orders"
+topic: "telemetry.ecommerce.orders"
+target_eps: 150
+
+fields:
+  # Metadata Generators
+  order_id:
+    - { value: "uuid" }
+  customer_id:
+    - { value: "uuid" }
+
+  # Clean Categorical Distributions
+  order_status:
+    - { value: "COMPLETED", weight: 70 }
+    - { value: "PROCESSING", weight: 15 }
+    - { value: "CONFIRMED", weight: 8 }
+    - { value: "CANCELLED", weight: 7 }
+
+  currency_code:
+    - { value: "USD", weight: 70 }
+    - { value: "EUR", weight: 20 }
+    - { value: "INR", weight: 10 }
+
+  # Baseline Pricing Sizing Dimension
+  subtotal_tier:
+    - { value: "budget", weight: 60 }
+    - { value: "mid", weight: 30 }
+    - { value: "premium", weight: 10 }
+
+  # Contextual Financial Generation Mapping (Pushed to back of pool automatically)
+  subtotal_amount:
+    - { value: "conditional(subtotal_tier=budget -> range(10,50); subtotal_tier=mid -> range(50,200); default -> range(200,1000))" }
+
+  shipping_amount:
+    - { value: "conditional(subtotal_tier=budget -> 5.99; default -> 0.0)" }
+
+  tax_amount:
+    - { value: "normal_distribution(mean=12.50,stddev=3.5,min=0.0)" }
