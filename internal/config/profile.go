@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -158,4 +159,103 @@ func compileWeightedChoice(items []ProfileWeightedItem) FieldGen {
 		}
 		return items[len(items)-1].Value
 	}
+}
+
+func compileNormalDistribution(args string) (FieldGen, error) {
+	params := parseKVArgs(args)
+	mean, _ := strconv.ParseFloat(params["mean"], 64)
+	stddev, _ := strconv.ParseFloat(params["stddev"], 64)
+
+	hasMin := false
+	var min float64
+	if val, ok := params["min"]; ok {
+		min, _ = strconv.ParseFloat(val, 64)
+		hasMin = true
+	}
+
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		sample := (r.NormFloat64() * stddev) + mean
+		if hasMin && sample < min {
+			sample = min
+		}
+		return math.Round(sample*100) / 100
+	}, nil
+}
+
+func compilePoissonDistribution(args string) (FieldGen, error) {
+	params := parseKVArgs(args)
+	lambda, _ := strconv.ParseFloat(params["lambda"], 64)
+	L := math.Exp(-lambda)
+
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		k := 0
+		p := 1.0
+		for p > L {
+			k++
+			p *= r.Float64()
+		}
+		return k - 1
+	}, nil
+}
+
+func compileConditional(args string) (FieldGen, error) {
+	branches := strings.Split(args, ";")
+	type conditionalBranch struct {
+		targetField string
+		matchValue  string
+		generator   FieldGen
+	}
+
+	var logicRoutes []conditionalBranch
+	var fallbackGen FieldGen
+
+	for _, branch := range branches {
+		branch = strings.TrimSpace(branch)
+		if strings.HasPrefix(branch, "default ->") {
+			rawFallback := strings.TrimSpace(strings.Split(branch, "->")[1])
+			compiled, _, _ := CompileStructuredRule([]ProfileWeightedItem{{Value: rawFallback}})
+			fallbackGen = compiled
+			continue
+		}
+
+		parts := strings.Split(branch, "->")
+		conditionParts := strings.Split(parts[0], "=")
+
+		targetField := strings.TrimSpace(conditionParts[0])
+		matchValue := strings.TrimSpace(conditionParts[1])
+		rawGenerationRule := strings.TrimSpace(parts[1])
+
+		compiledRule, _, _ := CompileStructuredRule([]ProfileWeightedItem{{Value: rawGenerationRule}})
+		logicRoutes = append(logicRoutes, conditionalBranch{
+			targetField: targetField,
+			matchValue:  matchValue,
+			generator:   compiledRule,
+		})
+	}
+
+	return func(r *rand.Rand, state map[string]interface{}) interface{} {
+		for _, route := range logicRoutes {
+			if val, exists := state[route.targetField]; exists {
+				if fmt.Sprintf("%v", val) == route.matchValue {
+					return route.generator(r, state)
+				}
+			}
+		}
+		if fallbackGen != nil {
+			return fallbackGen(r, state)
+		}
+		return nil
+	}, nil
+}
+
+func parseKVArgs(args string) map[string]string {
+	result := make(map[string]string)
+	pairs := strings.Split(args, ",")
+	for _, pair := range pairs {
+		kv := strings.Split(strings.TrimSpace(pair), "=")
+		if len(kv) == 2 {
+			result[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
+		}
+	}
+	return result
 }
