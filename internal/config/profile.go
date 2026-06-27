@@ -78,3 +78,50 @@ func LoadProfiles(dir string) ([]*EntityProfile, error) {
 	}
 	return profiles, nil
 }
+
+// CompileStructuredRule figures out if a field slice contains static choices, math distributions, or conditionals
+func CompileStructuredRule(items []ProfileWeightedItem) (FieldGen, bool, error) {
+	if len(items) == 0 {
+		return func(r *rand.Rand, s map[string]interface{}) interface{} { return "" }, false, nil
+	}
+
+	// Always prioritize single assignments (uuids, ranges, static scalars) safely
+	if len(items) == 1 {
+		firstValStr := fmt.Sprintf("%v", items[0].Value)
+
+		if firstValStr == "uuid" {
+			return func(r *rand.Rand, s map[string]interface{}) interface{} {
+				return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", r.Uint32(), r.Uint32()&0xffff, r.Uint32()&0xffff, r.Uint32()&0xffff, r.Uint64())
+			}, false, nil
+		}
+
+		if strings.HasPrefix(firstValStr, "range(") && strings.HasSuffix(firstValStr, ")") {
+			bounds := strings.Split(firstValStr[6:len(firstValStr)-1], ",")
+			min, _ := strconv.Atoi(strings.TrimSpace(bounds[0]))
+			max, _ := strconv.Atoi(strings.TrimSpace(bounds[1]))
+			return func(r *rand.Rand, s map[string]interface{}) interface{} {
+				return r.Intn(max-min+1) + min
+			}, false, nil
+		}
+
+		if strings.HasPrefix(firstValStr, "normal_distribution(") && strings.HasSuffix(firstValStr, ")") {
+			gen, err := compileNormalDistribution(firstValStr[20 : len(firstValStr)-1])
+			return gen, false, err
+		}
+
+		if strings.HasPrefix(firstValStr, "poisson_distribution(") && strings.HasSuffix(firstValStr, ")") {
+			gen, err := compilePoissonDistribution(firstValStr[21 : len(firstValStr)-1])
+			return gen, false, err
+		}
+
+		if strings.HasPrefix(firstValStr, "conditional(") && strings.HasSuffix(firstValStr, ")") {
+			gen, err := compileConditional(firstValStr[12 : len(firstValStr)-1])
+			return gen, true, err
+		}
+
+		// Plain primitive string/number values returned directly to marshal safely
+		return func(r *rand.Rand, s map[string]interface{}) interface{} { return items[0].Value }, false, nil
+	}
+
+	return compileWeightedChoice(items), false, nil
+}
