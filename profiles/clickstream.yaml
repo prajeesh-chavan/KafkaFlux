@@ -1,6 +1,7 @@
 entity: clickstream
 topic: telemetry.ecommerce.clickstream
 target_eps: 10
+dynamic_scaling: true
 fields:
   session_id:
     - value: "uuid"

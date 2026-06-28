@@ -32,6 +32,7 @@ type EntityProfile struct {
 	Entity    string                           `yaml:"entity"`
 	Topic     string                           `yaml:"topic"`
 	TargetEPS int                              `yaml:"target_eps"`
+	dynamic_scaling: true
 	Fields    map[string][]ProfileWeightedItem `yaml:"fields"`
 	Compiled  []FieldOrder                     `yaml:"-"` // Deterministic execution pipeline order
 }

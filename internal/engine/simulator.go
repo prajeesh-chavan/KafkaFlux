@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 	"fmt"
+	"math"
 )
 
 type DataEvent struct {
@@ -42,58 +43,115 @@ func (s *Simulator) Start(ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
+// getTrafficScale computes a sinusoidal multiplier based on uptime.
+// Emulates a full 24-hour business cycle every 10 minutes in real-time.
+func getTrafficScale(startTime time.Time) float64 {
+	duration := time.Since(startTime)
+	
+	// Period = 10 minutes (600 seconds) for an accelerated virtual day
+	const periodSeconds = 600.0 
+	seconds := math.Mod(duration.Seconds(), periodSeconds)
+	
+	// Shift by pi/2 so the system boots at a neutral middle baseline (Scale 1.0)
+	radians := (2.0 * math.Pi * seconds / periodSeconds) - (math.Pi / 2.0)
+	
+	// Sine ranges from -1 to +1. Amplitude of 0.6 means scale bounces between 0.4 and 1.6
+	scale := 1.0 + (0.6 * math.Sin(radians))
+	
+	if scale < 0.1 {
+		return 0.1 // Baseline floor barrier safety limit
+	}
+	return scale
+}
+
+func (s *Simulator) ReleaseBuffer(buf []byte) {
+	s.bytePool.Put(buf)
+}
+
 func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *config.EntityProfile) {
 	defer wg.Done()
 
 	localRand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	interval := time.Second / time.Duration(prof.TargetEPS)
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	startTime := time.Now()
+
+	// Track dynamic ticker evaluation intervals
+	var currentEPS float64
+	var interval time.Duration
+
+	// Velocity controller evaluator timer running every 2 seconds
+	adjustTicker := time.NewTicker(2 * time.Second)
+	defer adjustTicker.Stop()
+
+	// Initial configuration baseline setup
+	currentEPS = float64(prof.TargetEPS)
+	interval = time.Second / time.Duration(currentEPS)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-					buf := s.bytePool.Get().([]byte)
-					buf = buf[:0]
 
-					payload := make(map[string]interface{})
-					// Inject the registry into the payload map context safely
-					payload["__registry"] = s.Registry 
-
-					// Evaluate schema sequence while maintaining states
-					for _, fieldOrder := range prof.Compiled {
-						// 1. Generate the field value
-						val := fieldOrder.Gen(localRand, payload)
-						payload[fieldOrder.Name] = val
-
-						// 2. Dynamic Capture: Check if this specific field wants to publish to a pool
-						if rules, ok := prof.Fields[fieldOrder.Name]; ok && len(rules) == 1 {
-							if rules[0].StateAction == "publish" && rules[0].StatePool != "" {
-								s.Registry.Publish(rules[0].StatePool, fmt.Sprintf("%v", val))
-							}
+		case <-adjustTicker.C:
+					// Only apply the wave calculation if dynamic_scaling is enabled in the YAML
+					if prof.DynamicScaling {
+						scale := getTrafficScale(startTime)
+						newEPS := float64(prof.TargetEPS) * scale
+						
+						if int(newEPS) != int(currentEPS) && newEPS > 0 {
+							currentEPS = newEPS
+							interval = time.Second / time.Duration(currentEPS)
+						}
+					} else {
+						// Fallback/Reset to exact baseline if it was toggled or defaults to flat
+						if int(currentEPS) != prof.TargetEPS {
+							currentEPS = float64(prof.TargetEPS)
+							interval = time.Second / time.Duration(currentEPS)
 						}
 					}
 
-					// Clean up the context pointer before encoding to JSON output
-					delete(payload, "__registry")
+		default:
+			// Process event emission loop iteration matching dynamic velocity rates
+			loopStart := time.Now()
 
-					data, err := json.Marshal(payload)
-					
-			if err != nil {
-				continue
+			buf := s.bytePool.Get().([]byte)
+			buf = buf[:0]
+
+			payload := make(map[string]interface{})
+			// Inject the registry into the payload map context safely
+			payload["__registry"] = s.Registry
+
+					// Evaluate schema sequence while maintaining states
+			for _, fieldOrder := range prof.Compiled {
+						// 1. Generate the field value
+				val := fieldOrder.Gen(localRand, payload)
+				payload[fieldOrder.Name] = val
+
+						// 2. Dynamic Capture: Check if this specific field wants to publish to a pool
+				if rules, ok := prof.Fields[fieldOrder.Name]; ok && len(rules) == 1 {
+					if rules[0].StateAction == "publish" && rules[0].StatePool != "" {
+						s.Registry.Publish(rules[0].StatePool, fmt.Sprintf("%v", val))
+					}
+				}
 			}
-			buf = append(buf, data...)
 
-			s.outChan <- &DataEvent{
-				Topic: prof.Topic,
-				Data:  buf,
+			delete(payload, "__registry")
+
+			data, err := json.Marshal(payload)
+			if err == nil {
+				buf = append(buf, data...)
+				s.outChan <- &DataEvent{
+					Topic: prof.Topic,
+					Data:  buf,
+				}
+			} else {
+				s.bytePool.Put(buf)
+			}
+
+			// Execution tracking time compensation window throttling control
+			elapsed := time.Since(loopStart)
+			if elapsed < interval {
+				time.Sleep(interval - elapsed)
 			}
 		}
 	}
-}
-
-func (s *Simulator) ReleaseBuffer(buf []byte) {
-	s.bytePool.Put(buf)
 }
