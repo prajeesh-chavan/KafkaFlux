@@ -14,17 +14,28 @@ import (
 )
 
 type FilePublisher struct {
-	inChan     chan *engine.DataEvent
-	sim        *engine.Simulator
-	format     string // "json" or "csv"
-	outputPath string
+	inChan       chan *engine.DataEvent
+	sim          *engine.Simulator
+	format       string // "json" or "csv"
+	outputDir    string // Changed from outputPath to outputDir
+	
+	// Track file handles, writers, and headers per topic dynamically
+	files         map[string]*os.File
+	csvWriters    map[string]*csv.Writer
+	orderedKeys   map[string][]string
+	headersReady  map[string]bool
+	mu            sync.Mutex 
 }
 
-func NewFilePublisher(format string, outputPath string, inChan chan *engine.DataEvent) *FilePublisher {
+func NewFilePublisher(format string, outputDir string, inChan chan *engine.DataEvent) *FilePublisher {
 	return &FilePublisher{
-		format:     format,
-		outputPath: outputPath,
-		inChan:     inChan,
+		format:       format,
+		outputDir:    outputDir,
+		inChan:       inChan,
+		files:        make(map[string]*os.File),
+		csvWriters:   make(map[string]*csv.Writer),
+		orderedKeys:  make(map[string][]string),
+		headersReady: make(map[string]bool),
 	}
 }
 
@@ -37,33 +48,15 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 	go func() {
 		defer wg.Done()
 
+		// Ensure baseline output directory exists safely
+		if err := os.MkdirAll(fp.outputDir, 0755); err != nil {
+			fmt.Printf("File Engine Error: Failed to create output directory %s: %v\n", fp.outputDir, err)
+			return
+		}
+
 		ext := ".json"
 		if fp.format == "csv" {
 			ext = ".csv"
-		}
-		
-		fullPath := fp.outputPath + ext
-
-		dir := filepath.Dir(fullPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			fmt.Printf("File Engine Error: Failed to create output directory %s: %v\n", dir, err)
-			return
-		}
-
-		file, err := os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-		if err != nil {
-			fmt.Printf("File Engine Error: Failed to open output file: %v\n", err)
-			return
-		}
-		defer file.Close()
-
-		var csvWriter *csv.Writer
-		headerWritten := false
-		var orderedKeys []string
-
-		if fp.format == "csv" {
-			csvWriter = csv.NewWriter(file)
-			defer csvWriter.Flush()
 		}
 
 		for {
@@ -75,38 +68,68 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 					return
 				}
 
+				topic := event.Topic
+				if topic == "" {
+					topic = "unknown_topic"
+				}
+
+				// Thread-safely get or create the specific file handle for this topic
+				fp.mu.Lock()
+				file, exists := fp.files[topic]
+				if !exists {
+					fullPath := filepath.Join(fp.outputDir, topic+ext)
+					var err error
+					file, err = os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+					if err != nil {
+						fmt.Printf("File Engine Error: Failed to open file for topic %s: %v\n", topic, err)
+						fp.mu.Unlock()
+						continue
+					}
+					fp.files[topic] = file
+
+					if fp.format == "csv" {
+						fp.csvWriters[topic] = csv.NewWriter(file)
+					}
+				}
+				fp.mu.Unlock()
+
+				// Write processing block
 				if fp.format == "json" {
 					_, _ = file.Write(event.Data)
-					_, _ = file.WriteString("\n") 
+					_, _ = file.WriteString("\n")
 				} else if fp.format == "csv" {
 					var payload map[string]interface{}
 					if err := json.Unmarshal(event.Data, &payload); err == nil {
-						
-						// 1. Establish static column definitions on the very first entry
-						if !headerWritten {
+						writer := fp.csvWriters[topic]
+
+						fp.mu.Lock()
+						// Initialize specific structured headers for this file topic
+						if !fp.headersReady[topic] {
+							var keys []string
 							for k := range payload {
-								orderedKeys = append(orderedKeys, k)
+								keys = append(keys, k)
 							}
-							// Sort columns alphabetically to eliminate map sequence randomness completely!
-							sort.Strings(orderedKeys) 
+							sort.Strings(keys)
+							fp.orderedKeys[topic] = keys
 							
-							_ = csvWriter.Write(orderedKeys)
-							headerWritten = true
+							_ = writer.Write(keys)
+							fp.headersReady[topic] = true
 						}
 
-						// 2. Iterate using the locked, sorted key sequence
+						// Iterate strictly using this topic's key sequence mapping layout
 						var row []string
-						for _, key := range orderedKeys {
+						for _, key := range fp.orderedKeys[topic] {
 							val, exists := payload[key]
 							if exists {
 								row = append(row, fmt.Sprintf("%v", val))
 							} else {
-								row = append(row, "") 
+								row = append(row, "")
 							}
 						}
-						
-						_ = csvWriter.Write(row)
-						csvWriter.Flush()
+						fp.mu.Unlock()
+
+						_ = writer.Write(row)
+						writer.Flush()
 					}
 				}
 
@@ -118,4 +141,18 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 	}()
 }
 
-func (fp *FilePublisher) Close() {}
+func (fp *FilePublisher) Close() {
+	fp.mu.Lock()
+	defer fp.mu.Unlock()
+
+	// Flush and close every open file handle smoothly on exit shutdown signals
+	for topic, writer := range fp.csvWriters {
+		writer.Flush()
+		_ = topic
+	}
+	for _, file := range fp.files {
+		_ = file.Sync()
+		_ = file.Close()
+	}
+	fmt.Println("[TRANSPORT] All topic file sinks safely flushed and offline.")
+}

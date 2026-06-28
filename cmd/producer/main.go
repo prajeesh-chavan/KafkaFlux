@@ -37,7 +37,7 @@ func main() {
 	if mode == "json" || mode == "csv" {
 		outputPath := os.Getenv("OUTPUT_FILE_PATH")
 		if outputPath == "" {
-			outputPath = "./generated_output"
+			outputPath = "./data_output"
 		}
 		fmt.Printf("[TRANSPORT] Initializing File Sink Mode: writing %s outputs directly to %s\n", mode, outputPath)
 		publisher = transport.NewFilePublisher(mode, outputPath, eventChannel)
