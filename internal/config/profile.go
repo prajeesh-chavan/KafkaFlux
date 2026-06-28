@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -114,6 +115,28 @@ func CompileStructuredRule(items []ProfileWeightedItem) (FieldGen, bool, error) 
 		if firstValStr == "uuid" {
 			return func(r *rand.Rand, s map[string]interface{}) interface{} {
 				return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", r.Uint32(), r.Uint32()&0xffff, r.Uint32()&0xffff, r.Uint32()&0xffff, r.Uint64())
+			}, false, nil
+		}
+
+		// Dynamic Core Integer Generator
+		if firstValStr == "int" {
+			return func(r *rand.Rand, s map[string]interface{}) interface{} {
+				return r.Intn(90000) + 1000 // Generates clean order numbers or sequence IDs
+			}, false, nil
+		}
+
+		// Dynamic Core Float/Amount Generator
+		if firstValStr == "float" {
+			return func(r *rand.Rand, s map[string]interface{}) interface{} {
+				val := 5.0 + r.Float64()*(500.0-5.0) // Reasonable commercial amount spectrum
+				return math.Round(val*100) / 100     // Format cleanly to 2 decimal points
+			}, false, nil
+		}
+
+		// RFC3339 String Timestamp Generator
+		if firstValStr == "timestamp" {
+			return func(r *rand.Rand, s map[string]interface{}) interface{} {
+				return time.Now().Format(time.RFC3339)
 			}, false, nil
 		}
 
