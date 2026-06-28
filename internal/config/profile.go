@@ -266,14 +266,31 @@ func compileConditional(args string) (FieldGen, error) {
 
 	for _, branch := range branches {
 		branch = strings.TrimSpace(branch)
+		if branch == "" {
+			continue
+		}
+
 		if strings.HasPrefix(branch, "default ->") {
-			rawFallback := strings.TrimSpace(strings.Split(branch, "->")[1])
+			parts := strings.Split(branch, "->")
+			if len(parts) < 2 {
+				return nil, fmt.Errorf("invalid default branch syntax, missing output rule: %s", branch)
+			}
+			rawFallback := strings.TrimSpace(parts[1])
 			compiled, _, _ := CompileStructuredRule([]ProfileWeightedItem{{Value: rawFallback}})
 			fallbackGen = compiled
 			continue
 		}
 
+		// Guard: Ensure "->" exists
+		if !strings.Contains(branch, "->") {
+			return nil, fmt.Errorf("missing arrow '->' transition routing in branch: %s", branch)
+		}
 		parts := strings.Split(branch, "->")
+		
+		// Guard: Ensure "=" exists for the evaluation condition
+		if !strings.Contains(parts[0], "=") {
+			return nil, fmt.Errorf("missing '=' relational condition checking operator in branch: %s", branch)
+		}
 		conditionParts := strings.Split(parts[0], "=")
 
 		targetField := strings.TrimSpace(conditionParts[0])
