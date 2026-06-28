@@ -9,6 +9,9 @@ import (
 	"time"
 	"fmt"
 	"math"
+	"sync/atomic"
+	"os"
+	"strings"
 )
 
 type DataEvent struct {
@@ -21,13 +24,29 @@ type Simulator struct {
 	outChan  chan *DataEvent
 	bytePool *sync.Pool
 	Registry *StateRegistry
+	StartTime    time.Time
+	EventCounters map[string]*uint64 
+	CurrentEPS    map[string]*uint64
 }
 
 func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent) *Simulator {
+	counters := make(map[string]*uint64)
+	epsTracker := make(map[string]*uint64)
+	
+	for _, prof := range profiles {
+		var c uint64 = 0
+		var e uint64 = 0
+		counters[prof.Entity] = &c
+		epsTracker[prof.Entity] = &e
+	}
+
 	return &Simulator{
-		profiles: profiles,
-		outChan:  outChan,
-		Registry: NewStateRegistry(),
+		profiles:      profiles,
+		outChan:       outChan,
+		Registry:      NewStateRegistry(),
+		StartTime:     time.Now(),
+		EventCounters: counters,
+		CurrentEPS:    epsTracker,
 		bytePool: &sync.Pool{
 			New: func() interface{} {
 				return make([]byte, 0, 1024)
@@ -143,6 +162,10 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 					Topic: prof.Topic,
 					Data:  buf,
 				}
+
+				atomic.AddUint64(s.EventCounters[prof.Entity], 1)
+				atomic.StoreUint64(s.CurrentEPS[prof.Entity], uint64(currentEPS))
+
 			} else {
 				s.bytePool.Put(buf)
 			}
@@ -154,4 +177,75 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 			}
 		}
 	}
+}
+
+func (s *Simulator) StartDashboard(ctx context.Context, wg *sync.WaitGroup) {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ticker := time.NewTicker(500 * time.Millisecond) // Refresh twice per second
+		defer ticker.Stop()
+
+		mode := os.Getenv("SIMULATOR_MODE")
+		if mode == "" {
+			mode = "kafka"
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				// ANSI Escape Codes: Clear screen (\033[H matches top left, \033[2J clears screen)
+				fmt.Print("\033[2J\033[1;1H")
+
+				uptime := time.Since(s.StartTime).Round(time.Second)
+				chanLen := len(s.outChan)
+				chanCap := cap(s.outChan)
+				chanPercent := int((float64(chanLen) / float64(chanCap)) * 100)
+
+				// Generate dynamic loading bar for ring-buffer
+				barSize := 20
+				filledSize := int((float64(chanLen) / float64(chanCap)) * float64(barSize))
+				bar := ""
+				for i := 0; i < barSize; i++ {
+					if i < filledSize {
+						bar += "█"
+					} else {
+						bar += "."
+					}
+				}
+
+				fmt.Println("======================================================================")
+				fmt.Println("     KAFKAFLUX ENTERPRISE EVENT STREAM SIMULATOR")
+				fmt.Println("======================================================================")
+				fmt.Printf(" System Uptime: %s | Profiles: %d | Transport: %s\n", uptime, len(s.profiles), strings.ToUpper(mode))
+				fmt.Printf(" Buffer Channel Load: [%s] %d%% (%d / %d)\n", bar, chanPercent, chanLen, chanCap)
+				fmt.Println("----------------------------------------------------------------------")
+				fmt.Printf("%-15s %-30s %-12s %-15s\n", "ENTITY", "TOPIC", "CURR_EPS", "TOTAL_EVENTS")
+				fmt.Println("----------------------------------------------------------------------")
+
+				for _, prof := range s.profiles {
+					total := atomic.LoadUint64(s.EventCounters[prof.Entity])
+					eps := atomic.LoadUint64(s.CurrentEPS[prof.Entity])
+					
+					// Visually show if traffic scaling is active
+					waveIndicator := ""
+					if prof.DynamicScaling {
+						waveIndicator = " [Dynamic]"
+					}
+
+					fmt.Printf("%-15s %-30s %-12d %-15d%s\n", 
+						prof.Entity, 
+						prof.Topic, 
+						eps, 
+						total,
+						waveIndicator,
+					)
+				}
+				fmt.Println("----------------------------------------------------------------------")
+				fmt.Println(" [Press Ctrl+C to safely flush buffers and exit system metrics]")
+			}
+		}
+	}()
 }

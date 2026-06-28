@@ -68,7 +68,7 @@ func main() {
 	publisher.Start(ctx, &wg, 8) // Run with 8 decoupled parallel transport workers
 	sim.Start(ctx, &wg)
 
-	fmt.Printf("Running smoothly. Active profiles compiled: %d. Streaming...\n", len(profiles))
+	sim.StartDashboard(ctx, &wg)
 
 	// System signal interception for a graceful teardown
 	sigChan := make(chan os.Signal, 1)
