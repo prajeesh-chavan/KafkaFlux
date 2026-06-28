@@ -8,6 +8,8 @@ fields:
     - { value: "uuid" }
   customer_id:
     - { value: "uuid" }
+  associated_session:
+    - value: "pool(active_sessions)"
 
   # Clean Categorical Distributions
   order_status:

@@ -1,0 +1,10 @@
+entity: clickstream
+topic: telemetry.ecommerce.clickstream
+target_eps: 10
+fields:
+  session_id:
+    - value: "uuid"
+      state_pool: "active_sessions"
+      state_action: "publish"
+  page:
+    - value: "home"
