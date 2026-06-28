@@ -33,6 +33,7 @@ type EntityProfile struct {
 	Topic     string                           `yaml:"topic"`
 	TargetEPS int                              `yaml:"target_eps"`
 	DynamicScaling bool                        `yaml:"dynamic_scaling"`
+	Chaos ChaosConfig                          `yaml:"chaos"`
 	Fields    map[string][]ProfileWeightedItem `yaml:"fields"`
 	Compiled  []FieldOrder                     `yaml:"-"` // Deterministic execution pipeline order
 }
@@ -40,6 +41,15 @@ type EntityProfile struct {
 type FieldOrder struct {
 	Name string
 	Gen  FieldGen
+}
+
+type FieldCorruptionConfig struct {
+	Rate float64 `yaml:"rate"`
+}
+
+type ChaosConfig struct {
+	DropPercentage float64                           `yaml:"drop_percentage"`
+	CorruptFields  map[string]FieldCorruptionConfig `yaml:"corrupt_fields"`
 }
 
 // LoadProfiles scans the configuration directory and processes all profiles into memory

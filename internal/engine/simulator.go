@@ -3,15 +3,16 @@ package engine
 import (
 	"context"
 	"encoding/json"
-	"go-kafka-simulator/internal/config"
-	"math/rand"
-	"sync"
-	"time"
 	"fmt"
 	"math"
-	"sync/atomic"
+	"math/rand"
 	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"go-kafka-simulator/internal/config"
 )
 
 type DataEvent struct {
@@ -20,13 +21,13 @@ type DataEvent struct {
 }
 
 type Simulator struct {
-	profiles []*config.EntityProfile
-	outChan  chan *DataEvent
-	bytePool *sync.Pool
-	Registry *StateRegistry
-	StartTime    time.Time
+	profiles      []*config.EntityProfile
+	outChan       chan *DataEvent
+	bytePool      *sync.Pool
+	Registry      *StateRegistry
+	StartTime     time.Time
 	EventCounters map[string]*uint64 
-	CurrentEPS    map[string]*uint64
+	CurrentEPS    map[string]*uint64 
 }
 
 func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent) *Simulator {
@@ -62,23 +63,14 @@ func (s *Simulator) Start(ctx context.Context, wg *sync.WaitGroup) {
 	}
 }
 
-// getTrafficScale computes a sinusoidal multiplier based on uptime.
-// Emulates a full 24-hour business cycle every 10 minutes in real-time.
 func getTrafficScale(startTime time.Time) float64 {
 	duration := time.Since(startTime)
-	
-	// Period = 10 minutes (600 seconds) for an accelerated virtual day
 	const periodSeconds = 600.0 
 	seconds := math.Mod(duration.Seconds(), periodSeconds)
-	
-	// Shift by pi/2 so the system boots at a neutral middle baseline (Scale 1.0)
 	radians := (2.0 * math.Pi * seconds / periodSeconds) - (math.Pi / 2.0)
-	
-	// Sine ranges from -1 to +1. Amplitude of 0.6 means scale bounces between 0.4 and 1.6
 	scale := 1.0 + (0.6 * math.Sin(radians))
-	
 	if scale < 0.1 {
-		return 0.1 // Baseline floor barrier safety limit
+		return 0.1 
 	}
 	return scale
 }
@@ -93,15 +85,12 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 	localRand := rand.New(rand.NewSource(time.Now().UnixNano()))
 	startTime := time.Now()
 
-	// Track dynamic ticker evaluation intervals
 	var currentEPS float64
 	var interval time.Duration
 
-	// Velocity controller evaluator timer running every 2 seconds
 	adjustTicker := time.NewTicker(2 * time.Second)
 	defer adjustTicker.Stop()
 
-	// Initial configuration baseline setup
 	currentEPS = float64(prof.TargetEPS)
 	interval = time.Second / time.Duration(currentEPS)
 
@@ -111,41 +100,51 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 			return
 
 		case <-adjustTicker.C:
-					// Only apply the wave calculation if dynamic_scaling is enabled in the YAML
-					if prof.DynamicScaling {
-						scale := getTrafficScale(startTime)
-						newEPS := float64(prof.TargetEPS) * scale
-						
-						if int(newEPS) != int(currentEPS) && newEPS > 0 {
-							currentEPS = newEPS
-							interval = time.Second / time.Duration(currentEPS)
-						}
-					} else {
-						// Fallback/Reset to exact baseline if it was toggled or defaults to flat
-						if int(currentEPS) != prof.TargetEPS {
-							currentEPS = float64(prof.TargetEPS)
-							interval = time.Second / time.Duration(currentEPS)
-						}
-					}
+			if prof.DynamicScaling {
+				scale := getTrafficScale(startTime)
+				newEPS := float64(prof.TargetEPS) * scale
+				if int(newEPS) != int(currentEPS) && newEPS > 0 {
+					currentEPS = newEPS
+					interval = time.Second / time.Duration(currentEPS)
+				}
+			} else {
+				if int(currentEPS) != prof.TargetEPS {
+					currentEPS = float64(prof.TargetEPS)
+					interval = time.Second / time.Duration(currentEPS)
+				}
+			}
 
 		default:
-			// Process event emission loop iteration matching dynamic velocity rates
+			// Chaos Injection: Drop events
+			if prof.Chaos.DropPercentage > 0 && localRand.Float64()*100.0 < prof.Chaos.DropPercentage {
+				time.Sleep(interval)
+				continue
+			}
+
 			loopStart := time.Now()
 
 			buf := s.bytePool.Get().([]byte)
 			buf = buf[:0]
 
 			payload := make(map[string]interface{})
-			// Inject the registry into the payload map context safely
 			payload["__registry"] = s.Registry
 
-					// Evaluate schema sequence while maintaining states
 			for _, fieldOrder := range prof.Compiled {
-						// 1. Generate the field value
 				val := fieldOrder.Gen(localRand, payload)
+				
+				// Chaos Injection: Field Corruption
+				if corruptCfg, exists := prof.Chaos.CorruptFields[fieldOrder.Name]; exists {
+					if localRand.Float64()*100.0 < corruptCfg.Rate {
+						if localRand.Float64() > 0.5 {
+							val = "NULL"
+						} else {
+							val = "CHAOS_CORRUPTION_ERR"
+						}
+					}
+				}
+
 				payload[fieldOrder.Name] = val
 
-						// 2. Dynamic Capture: Check if this specific field wants to publish to a pool
 				if rules, ok := prof.Fields[fieldOrder.Name]; ok && len(rules) == 1 {
 					if rules[0].StateAction == "publish" && rules[0].StatePool != "" {
 						s.Registry.Publish(rules[0].StatePool, fmt.Sprintf("%v", val))
@@ -162,15 +161,12 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 					Topic: prof.Topic,
 					Data:  buf,
 				}
-
 				atomic.AddUint64(s.EventCounters[prof.Entity], 1)
 				atomic.StoreUint64(s.CurrentEPS[prof.Entity], uint64(currentEPS))
-
 			} else {
 				s.bytePool.Put(buf)
 			}
 
-			// Execution tracking time compensation window throttling control
 			elapsed := time.Since(loopStart)
 			if elapsed < interval {
 				time.Sleep(interval - elapsed)
@@ -183,7 +179,7 @@ func (s *Simulator) StartDashboard(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		ticker := time.NewTicker(500 * time.Millisecond) // Refresh twice per second
+		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
 
 		mode := os.Getenv("SIMULATOR_MODE")
@@ -196,7 +192,6 @@ func (s *Simulator) StartDashboard(ctx context.Context, wg *sync.WaitGroup) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				// ANSI Escape Codes: Clear screen (\033[H matches top left, \033[2J clears screen)
 				fmt.Print("\033[2J\033[1;1H")
 
 				uptime := time.Since(s.StartTime).Round(time.Second)
@@ -204,7 +199,6 @@ func (s *Simulator) StartDashboard(ctx context.Context, wg *sync.WaitGroup) {
 				chanCap := cap(s.outChan)
 				chanPercent := int((float64(chanLen) / float64(chanCap)) * 100)
 
-				// Generate dynamic loading bar for ring-buffer
 				barSize := 20
 				filledSize := int((float64(chanLen) / float64(chanCap)) * float64(barSize))
 				bar := ""
@@ -229,10 +223,9 @@ func (s *Simulator) StartDashboard(ctx context.Context, wg *sync.WaitGroup) {
 					total := atomic.LoadUint64(s.EventCounters[prof.Entity])
 					eps := atomic.LoadUint64(s.CurrentEPS[prof.Entity])
 					
-					// Visually show if traffic scaling is active
 					waveIndicator := ""
 					if prof.DynamicScaling {
-						waveIndicator = " [Dynamic]"
+						waveIndicator = "[Dynamic]"
 					}
 
 					fmt.Printf("%-15s %-30s %-12d %-15d%s\n", 
