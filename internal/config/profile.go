@@ -12,6 +12,10 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type PoolFetcher interface {
+	Fetch(poolName string) (string, bool)
+}
+
 // FieldGen handles pre-compiled generation loops passing map tracking scopes downwards
 type FieldGen func(r *rand.Rand, state map[string]interface{}) interface{}
 
@@ -20,6 +24,8 @@ type ProfileWeightedItem struct {
 	Value      interface{} `yaml:"value"` // Can be a string, number, or rule expression
 	Weight     float64     `yaml:"weight"`
 	Expression string      `yaml:"expression,omitempty"` // For complex nested structures if needed
+	StatePool   string      `yaml:"state_pool,omitempty"`
+	StateAction string `yaml:"state_action,omitempty"`
 }
 
 type EntityProfile struct {
@@ -106,6 +112,21 @@ func CompileStructuredRule(items []ProfileWeightedItem) (FieldGen, bool, error) 
 			max, _ := strconv.Atoi(strings.TrimSpace(bounds[1]))
 			return func(r *rand.Rand, s map[string]interface{}) interface{} {
 				return r.Intn(max-min+1) + min
+			}, false, nil
+		}
+
+		// Handle dynamic state pool selection lookups
+		if strings.HasPrefix(firstValStr, "pool(") && strings.HasSuffix(firstValStr, ")") {
+			targetPool := firstValStr[5 : len(firstValStr)-1]
+			return func(r *rand.Rand, s map[string]interface{}) interface{} {
+				// Attempt to extract our injected state registry
+				if reg, ok := s["__registry"].(PoolFetcher); ok {
+					if val, found := reg.Fetch(targetPool); found {
+						return val
+					}
+				}
+				// Safe fallback uuid if pool doesn't exist yet or is empty
+				return fmt.Sprintf("%08x-%04x", r.Uint32(), r.Uint32()&0xffff)
 			}, false, nil
 		}
 

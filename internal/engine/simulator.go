@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"sync"
 	"time"
+	"fmt"
 )
 
 type DataEvent struct {
@@ -18,12 +19,14 @@ type Simulator struct {
 	profiles []*config.EntityProfile
 	outChan  chan *DataEvent
 	bytePool *sync.Pool
+	Registry *StateRegistry
 }
 
 func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent) *Simulator {
 	return &Simulator{
 		profiles: profiles,
 		outChan:  outChan,
+		Registry: NewStateRegistry(),
 		bytePool: &sync.Pool{
 			New: func() interface{} {
 				return make([]byte, 0, 1024)
@@ -52,16 +55,32 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			buf := s.bytePool.Get().([]byte)
-			buf = buf[:0]
+					buf := s.bytePool.Get().([]byte)
+					buf = buf[:0]
 
-			// Evaluate schema sequence while continuously maintaining our calculation states
-			payload := make(map[string]interface{})
-			for _, fieldOrder := range prof.Compiled {
-				payload[fieldOrder.Name] = fieldOrder.Gen(localRand, payload)
-			}
+					payload := make(map[string]interface{})
+					// Inject the registry into the payload map context safely
+					payload["__registry"] = s.Registry 
 
-			data, err := json.Marshal(payload)
+					// Evaluate schema sequence while maintaining states
+					for _, fieldOrder := range prof.Compiled {
+						// 1. Generate the field value
+						val := fieldOrder.Gen(localRand, payload)
+						payload[fieldOrder.Name] = val
+
+						// 2. Dynamic Capture: Check if this specific field wants to publish to a pool
+						if rules, ok := prof.Fields[fieldOrder.Name]; ok && len(rules) == 1 {
+							if rules[0].StateAction == "publish" && rules[0].StatePool != "" {
+								s.Registry.Publish(rules[0].StatePool, fmt.Sprintf("%v", val))
+							}
+						}
+					}
+
+					// Clean up the context pointer before encoding to JSON output
+					delete(payload, "__registry")
+
+					data, err := json.Marshal(payload)
+					
 			if err != nil {
 				continue
 			}
