@@ -16,8 +16,13 @@ import (
 func main() {
 	fmt.Println("Initializing Enterprise Stream Architecture Engine...")
 
+	cfg, err := config.Load("config.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// 1. Compile Configuration Blueprints
-	profiles, err := config.LoadProfiles("./profiles")
+	profiles, err := config.LoadProfiles(cfg.Simulator.ProfilesDir)
 	if err != nil {
 		fmt.Printf("Initialization Fatal Error: %v\n", err)
 		os.Exit(1)
@@ -65,7 +70,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	// 5. Fire Engine Engines Upwards
-	publisher.Start(ctx, &wg, 8) // Run with 8 decoupled parallel transport workers
+	publisher.Start(ctx, &wg, cfg.Simulator.Workers)
 	sim.Start(ctx, &wg)
 
 	sim.StartDashboard(ctx, &wg)

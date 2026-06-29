@@ -1,0 +1,4 @@
+simulator:
+  workers: 8
+  profiles_dir: "./profiles"
+  kafka_servers: "kafka:29092"
