@@ -18,7 +18,8 @@ func main() {
 
 	cfg, err := config.Load("config.yaml")
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("Failed to load configuration: %v\n", err)
+		os.Exit(1)
 	}
 
 	// 1. Compile Configuration Blueprints
