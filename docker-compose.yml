@@ -30,6 +30,7 @@ services:
       # Mounts your local profiles directory so you can update YAMLs without rebuilding the container!
       - ./profiles:/root/profiles
       - ./data_output:/root/output
+      - ./config.yaml:/root/config.yaml
     environment:
       # Point to the Kafka service container within the internal docker network
       KAFKA_BROKERS: "kafka:29092"
