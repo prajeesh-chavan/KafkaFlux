@@ -140,6 +140,51 @@ func CompileStructuredRule(items []ProfileWeightedItem) (FieldGen, bool, error) 
 			}, false, nil
 		}
 
+		// Real Identity Name Generator
+		if firstValStr == "name" {
+			firstNames := []string{"Amit", "Neha", "Rahul", "Priya", "Vikram", "Ananya", "Rohan", "Sneha", "Arjun", "Pooja"}
+			lastNames := []string{"Sharma", "Verma", "Chavan", "Joshi", "Patil", "Mehta", "Kumar", "Singh", "Das", "Reddy"}
+			return func(r *rand.Rand, s map[string]interface{}) interface{} {
+				return firstNames[r.Intn(len(firstNames))] + " " + lastNames[r.Intn(len(lastNames))]
+			}, false, nil
+		}
+
+		// Context-Aware Smart Email Generator
+		if firstValStr == "email" {
+			domains := []string{"gmail.com", "yahoo.com", "outlook.com"}
+			return func(r *rand.Rand, s map[string]interface{}) interface{} {
+				username := "user_" + strconv.Itoa(r.Intn(90000)+10000)
+				
+				// Smart Trick: Look into the current record state map. 
+				// If first_name or last_name has already been calculated, use it to build a real email address!
+				var nameParts []string
+				if fName, exists := s["first_name"]; exists {
+					nameParts = append(nameParts, strings.ToLower(fmt.Sprintf("%v", fName)))
+				}
+				if lName, exists := s["last_name"]; exists {
+					nameParts = append(nameParts, strings.ToLower(fmt.Sprintf("%v", lName)))
+				}
+				
+				if len(nameParts) > 0 {
+					username = strings.Join(nameParts, "") + strconv.Itoa(r.Intn(99))
+				}
+				return username + "@" + domains[r.Intn(len(domains))]
+			}, false, nil
+		}
+
+		// Standard 10-Digit Mobile Number Generator
+		if firstValStr == "phone" {
+			startDigits := []string{"9", "8", "7"}
+			return func(r *rand.Rand, s map[string]interface{}) interface{} {
+				var builder strings.Builder
+				builder.WriteString(startDigits[r.Intn(len(startDigits))])
+				for i := 0; i < 9; i++ {
+					builder.WriteString(strconv.Itoa(r.Intn(10)))
+				}
+				return builder.String()
+			}, false, nil
+		}
+
 		if strings.HasPrefix(firstValStr, "range(") && strings.HasSuffix(firstValStr, ")") {
 			bounds := strings.Split(firstValStr[6:len(firstValStr)-1], ",")
 			min, _ := strconv.Atoi(strings.TrimSpace(bounds[0]))
