@@ -53,6 +53,35 @@ type ChaosConfig struct {
 	CorruptFields  map[string]FieldCorruptionConfig `yaml:"corrupt_fields"`
 }
 
+type NameBuilder struct {
+	First string
+	Last  string
+}
+
+var defaultFirstNames = []string{
+	"Amit", "Neha", "Rahul", "Priya", "Vikram",
+	"Ananya", "Rohan", "Sneha", "Arjun", "Pooja",
+}
+
+var defaultLastNames = []string{
+	"Sharma", "Verma", "Chavan", "Joshi", "Patil",
+	"Mehta", "Kumar", "Singh", "Das", "Reddy",
+}
+
+func getOrCreateName(r *rand.Rand, state map[string]interface{}) NameBuilder {
+	if name, ok := state["__name"].(NameBuilder); ok {
+		return name
+	}
+
+	name := NameBuilder{
+		First: defaultFirstNames[r.Intn(len(defaultFirstNames))],
+		Last:  defaultLastNames[r.Intn(len(defaultLastNames))],
+	}
+
+	state["__name"] = name
+	return name
+}
+
 // LoadProfiles scans the configuration directory and processes all profiles into memory
 func LoadProfiles(dir string) ([]*EntityProfile, error) {
 	files, err := filepath.Glob(filepath.Join(dir, "*.yaml"))
@@ -140,34 +169,94 @@ func CompileStructuredRule(items []ProfileWeightedItem) (FieldGen, bool, error) 
 			}, false, nil
 		}
 
-		// Real Identity Name Generator
-		if firstValStr == "name" {
-			firstNames := []string{"Amit", "Neha", "Rahul", "Priya", "Vikram", "Ananya", "Rohan", "Sneha", "Arjun", "Pooja"}
-			lastNames := []string{"Sharma", "Verma", "Chavan", "Joshi", "Patil", "Mehta", "Kumar", "Singh", "Das", "Reddy"}
+		if firstValStr == "first_name" {
 			return func(r *rand.Rand, s map[string]interface{}) interface{} {
-				return firstNames[r.Intn(len(firstNames))] + " " + lastNames[r.Intn(len(lastNames))]
+				return getOrCreateName(r, s).First
+			}, false, nil
+		}
+
+		if firstValStr == "last_name" {
+			return func(r *rand.Rand, s map[string]interface{}) interface{} {
+				return getOrCreateName(r, s).Last
+			}, false, nil
+		}
+
+		if firstValStr == "name" {
+			return func(r *rand.Rand, s map[string]interface{}) interface{} {
+				n := getOrCreateName(r, s)
+				return n.First + " " + n.Last
 			}, false, nil
 		}
 
 		// Context-Aware Smart Email Generator
 		if firstValStr == "email" {
-			domains := []string{"gmail.com", "yahoo.com", "outlook.com"}
+			domains := []string{
+				"gmail.com",
+				"yahoo.com",
+				"outlook.com",
+				"hotmail.com",
+			}
+
 			return func(r *rand.Rand, s map[string]interface{}) interface{} {
-				username := "user_" + strconv.Itoa(r.Intn(90000)+10000)
-				
-				// Smart Trick: Look into the current record state map. 
-				// If first_name or last_name has already been calculated, use it to build a real email address!
-				var nameParts []string
-				if fName, exists := s["first_name"]; exists {
-					nameParts = append(nameParts, strings.ToLower(fmt.Sprintf("%v", fName)))
+
+				// Prefer explicit first_name and last_name if already generated.
+				var firstName string
+				var lastName string
+
+				if v, ok := s["first_name"]; ok {
+					firstName = strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", v)))
 				}
-				if lName, exists := s["last_name"]; exists {
-					nameParts = append(nameParts, strings.ToLower(fmt.Sprintf("%v", lName)))
+
+				if v, ok := s["last_name"]; ok {
+					lastName = strings.ToLower(strings.TrimSpace(fmt.Sprintf("%v", v)))
 				}
-				
-				if len(nameParts) > 0 {
-					username = strings.Join(nameParts, "") + strconv.Itoa(r.Intn(99))
+
+				// If only full name exists, split it.
+				if firstName == "" && lastName == "" {
+					if v, ok := s["name"]; ok {
+						parts := strings.Fields(strings.ToLower(fmt.Sprintf("%v", v)))
+						if len(parts) > 0 {
+							firstName = parts[0]
+						}
+						if len(parts) > 1 {
+							lastName = parts[len(parts)-1]
+						}
+					}
 				}
+
+				// Remove spaces and special characters.
+				clean := func(str string) string {
+					var b strings.Builder
+					for _, ch := range str {
+						if (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') {
+							b.WriteRune(ch)
+						}
+					}
+					return b.String()
+				}
+
+				firstName = clean(firstName)
+				lastName = clean(lastName)
+
+				var username string
+
+				switch {
+				case firstName != "" && lastName != "":
+					username = firstName + "." + lastName
+
+				case firstName != "":
+					username = firstName
+
+				case lastName != "":
+					username = lastName
+
+				default:
+					username = "user"
+				}
+
+				// Append random suffix to avoid duplicate emails.
+				username += strconv.Itoa(r.Intn(9000) + 1000)
+
 				return username + "@" + domains[r.Intn(len(domains))]
 			}, false, nil
 		}

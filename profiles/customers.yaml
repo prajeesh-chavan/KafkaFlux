@@ -1,0 +1,57 @@
+entity: customers
+topic: "telemetry.ecommerce.customers"
+target_eps: 1
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  customer_id:
+    - value: uuid
+      weight: 100
+      state_action: publish
+      state_pool: customers
+
+  first_name:
+    - value: first_name # Uses our high-performance PII generator
+      weight: 100
+
+  last_name:
+    - value: last_name
+      weight: 100
+
+  email:
+    - value: email # Uses our context-aware username generator
+      weight: 100
+
+  phone:
+    - value: phone # Uses our standard 10-digit mobile number rule
+      weight: 100
+
+  customer_status:
+    - value: ACTIVE
+      weight: 85
+    - value: INACTIVE
+      weight: 10
+    - value: BLOCKED
+      weight: 5
+
+  registered_at:
+    - value: timestamp
+      weight: 100
+
+  created_at:
+    - value: timestamp
+      weight: 100
+
+  updated_at:
+    - value: timestamp
+      weight: 100
+
+  is_deleted:
+    - value: false
+      weight: 98
+    - value: true
+      weight: 2
