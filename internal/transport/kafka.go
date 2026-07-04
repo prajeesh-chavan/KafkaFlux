@@ -2,19 +2,21 @@
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 
 	"go-kafka-simulator/internal/engine"
 	"go-kafka-simulator/internal/pool"
+	"go-kafka-simulator/internal/telemetry"
 )
 
 type KafkaPublisher struct {
 	producer *kafka.Producer
 	inChan   chan *engine.DataEvent
 	bufPool  pool.BufferPool
+	metrics  *telemetry.Metrics
 }
 
 func NewKafkaPublisher(brokers string, inChan chan *engine.DataEvent) (*KafkaPublisher, error) {
@@ -39,13 +41,23 @@ func (kp *KafkaPublisher) SetBufferPool(p pool.BufferPool) {
 	kp.bufPool = p
 }
 
+func (kp *KafkaPublisher) SetMetrics(m *telemetry.Metrics) {
+	kp.metrics = m
+}
+
 func (kp *KafkaPublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallelWorkers int) {
 	go func() {
 		for e := range kp.producer.Events() {
 			switch ev := e.(type) {
 			case *kafka.Message:
 				if ev.TopicPartition.Error != nil {
-					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition.Error)
+					if kp.metrics != nil {
+						kp.metrics.IncDeliveryFail()
+					}
+					slog.Error("kafka delivery failed",
+						"topic", *ev.TopicPartition.Topic,
+						"error", ev.TopicPartition.Error,
+					)
 				}
 				if kp.bufPool != nil && ev.Opaque != nil {
 					if buf, ok := ev.Opaque.([]byte); ok {
@@ -82,4 +94,5 @@ func (kp *KafkaPublisher) Start(ctx context.Context, wg *sync.WaitGroup, paralle
 func (kp *KafkaPublisher) Close() {
 	kp.producer.Flush(15000)
 	kp.producer.Close()
+	slog.Info("kafka publisher closed")
 }

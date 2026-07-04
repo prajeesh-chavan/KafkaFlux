@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"sync"
 	"sync/atomic"
@@ -49,6 +50,9 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 
 		default:
 			if prof.Chaos.DropPercentage > 0 && localRand.Float64()*100.0 < prof.Chaos.DropPercentage {
+				if s.metrics != nil {
+					s.metrics.IncEventsDropped()
+				}
 				time.Sleep(interval)
 				continue
 			}
@@ -78,7 +82,7 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 
 				if cfg, ok := prof.Fields[fieldOrder.Name]; ok {
 					if cfg.PublishTo != "" {
-						s.Registry.Publish(cfg.PublishTo, fmt.Sprintf("%v", val))
+						s.Registry.Publish(cfg.PublishTo, toString(val))
 					}
 				}
 			}
@@ -94,8 +98,16 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 				}
 				atomic.AddUint64(s.EventCounters[prof.Entity], 1)
 				atomic.StoreUint64(s.CurrentEPS[prof.Entity], uint64(currentEPS))
+				if s.metrics != nil {
+					s.metrics.IncEventsTotal(prof.Entity)
+					s.metrics.SetEPS(prof.Entity, currentEPS)
+				}
 			} else {
 				s.bufPool.Put(buf)
+				if s.metrics != nil {
+					s.metrics.IncMarshalErrors()
+				}
+				slog.Error("json marshal failed", "entity", prof.Entity, "error", err)
 			}
 
 			elapsed := time.Since(loopStart)
@@ -104,4 +116,8 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 			}
 		}
 	}
+}
+
+func toString(v interface{}) string {
+	return fmt.Sprintf("%v", v)
 }

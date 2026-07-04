@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -52,14 +53,14 @@ func LoadProfiles(dir string) ([]*EntityProfile, error) {
 		}
 
 		if len(p.Fields) == 0 {
-			fmt.Printf("[WARNING] Profile %s loaded 0 fields! Check your YAML indentation.\n", file)
+			slog.Warn("profile loaded 0 fields, check indentation", "file", file)
 		}
 
 		var baseFields []FieldOrder
 		var conditionalFields []FieldOrder
 
 		for fieldName, cfg := range p.Fields {
-			fmt.Printf("[ENGINE] Compiling pipeline rule for field: %s (type: %s)\n", fieldName, cfg.Type)
+			slog.Debug("compiling field", "entity", p.Entity, "field", fieldName, "type", cfg.Type)
 			gen, isConditional, err := field.CompileField(cfg)
 			if err != nil {
 				return nil, fmt.Errorf("error in profile %s, field %s: %w", p.Entity, fieldName, err)

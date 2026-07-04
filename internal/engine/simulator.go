@@ -7,19 +7,21 @@ import (
 
 	"go-kafka-simulator/internal/config"
 	"go-kafka-simulator/internal/pool"
+	"go-kafka-simulator/internal/telemetry"
 )
 
 type Simulator struct {
 	profiles      []*config.EntityProfile
 	outChan       chan *DataEvent
 	bufPool       pool.BufferPool
+	metrics       *telemetry.Metrics
 	Registry      *StateRegistry
 	StartTime     time.Time
 	EventCounters map[string]*uint64
 	CurrentEPS    map[string]*uint64
 }
 
-func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent, bufPool pool.BufferPool) *Simulator {
+func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent, bufPool pool.BufferPool, metrics *telemetry.Metrics) *Simulator {
 	counters := make(map[string]*uint64)
 	epsTracker := make(map[string]*uint64)
 
@@ -38,6 +40,7 @@ func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent, buf
 		EventCounters: counters,
 		CurrentEPS:    epsTracker,
 		bufPool:       bufPool,
+		metrics:       metrics,
 	}
 }
 

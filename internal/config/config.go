@@ -7,9 +7,11 @@ type Config struct {
 }
 
 type SimulatorConfig struct {
-	Workers        int    `yaml:"workers"`
-	ProfilesDir    string `yaml:"profiles_dir"`
-	KafkaServers   string `yaml:"kafka_servers"`
+	Workers      int    `yaml:"workers"`
+	ProfilesDir  string `yaml:"profiles_dir"`
+	KafkaServers string `yaml:"kafka_servers"`
+	MetricsPort  int    `yaml:"metrics_port"`
+	LogLevel     string `yaml:"log_level"`
 }
 
 type RuntimeConfig struct {

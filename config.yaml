@@ -2,3 +2,5 @@ simulator:
   workers: 8
   profiles_dir: "./profiles"
   kafka_servers: "kafka:29092"
+  metrics_port: 9099
+  log_level: "info"

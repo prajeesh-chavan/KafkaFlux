@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -11,21 +13,26 @@ import (
 	"go-kafka-simulator/internal/config"
 	"go-kafka-simulator/internal/engine"
 	"go-kafka-simulator/internal/pool"
+	"go-kafka-simulator/internal/telemetry"
 	"go-kafka-simulator/internal/transport"
 )
 
 func Run() {
 	cfg, err := config.LoadRuntime()
 	if err != nil {
-		fmt.Printf("Failed to load configuration: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Failed to load configuration: %v\n", err)
 		os.Exit(1)
 	}
 
+	telemetry.InitLogger(cfg.Simulator.LogLevel)
+
 	profiles, err := config.LoadProfiles(cfg.Simulator.ProfilesDir)
 	if err != nil {
-		fmt.Printf("Failed to load profiles: %v\n", err)
+		slog.Error("failed to load profiles", "error", err)
 		os.Exit(1)
 	}
+
+	metrics := telemetry.NewMetrics()
 
 	eventChannel := make(chan *engine.DataEvent, 100000)
 	bufPool := pool.NewSyncPool()
@@ -33,12 +40,19 @@ func Run() {
 	var publisher transport.DataPublisher
 	buildPublisher(cfg, eventChannel, &publisher)
 	publisher.SetBufferPool(bufPool)
+	publisher.SetMetrics(metrics)
 	defer publisher.Close()
 
-	sim := engine.NewSimulator(profiles, eventChannel, bufPool)
+	sim := engine.NewSimulator(profiles, eventChannel, bufPool, metrics)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
+
+	metricsPort := cfg.Simulator.MetricsPort
+	if metricsPort == 0 {
+		metricsPort = 9099
+	}
+	go startMetricsServer(ctx, metricsPort, metrics)
 
 	publisher.Start(ctx, &wg, cfg.Simulator.Workers)
 	sim.Start(ctx, &wg)
@@ -48,22 +62,39 @@ func Run() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
 
-	fmt.Println("\nGraceful shutdown signal triggered. Halting processing pipelines...")
+	slog.Info("shutdown signal received, halting pipelines")
 	cancel()
 	wg.Wait()
 	close(eventChannel)
-	fmt.Println("System offline successfully.")
+	slog.Info("system offline")
+}
+
+func startMetricsServer(ctx context.Context, port int, m *telemetry.Metrics) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", m.Handler())
+	addr := fmt.Sprintf(":%d", port)
+	server := &http.Server{Addr: addr, Handler: mux}
+
+	go func() {
+		<-ctx.Done()
+		server.Shutdown(context.Background())
+	}()
+
+	slog.Info("metrics server starting", "addr", addr)
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Error("metrics server error", "error", err)
+	}
 }
 
 func buildPublisher(cfg *config.RuntimeConfig, ch chan *engine.DataEvent, pub *transport.DataPublisher) {
 	if cfg.Mode == "json" || cfg.Mode == "csv" {
-		fmt.Printf("[TRANSPORT] Initializing File Sink Mode: writing %s outputs to %s\n", cfg.Mode, cfg.OutputPath)
+		slog.Info("initializing file sink", "mode", cfg.Mode, "output", cfg.OutputPath)
 		*pub = transport.NewFilePublisher(cfg.Mode, cfg.OutputPath, ch)
 	} else {
-		fmt.Printf("[TRANSPORT] Initializing Kafka producer: %s\n", cfg.Broker)
+		slog.Info("initializing kafka producer", "broker", cfg.Broker)
 		kPub, err := transport.NewKafkaPublisher(cfg.Broker, ch)
 		if err != nil {
-			fmt.Printf("Failed to create Kafka publisher: %v\n", err)
+			slog.Error("failed to create kafka publisher", "error", err)
 			os.Exit(1)
 		}
 		*pub = kPub

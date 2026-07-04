@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,11 +13,13 @@ import (
 
 	"go-kafka-simulator/internal/engine"
 	"go-kafka-simulator/internal/pool"
+	"go-kafka-simulator/internal/telemetry"
 )
 
 type FilePublisher struct {
 	inChan    chan *engine.DataEvent
 	bufPool   pool.BufferPool
+	metrics   *telemetry.Metrics
 	format    string
 	outputDir string
 
@@ -43,13 +46,17 @@ func (fp *FilePublisher) SetBufferPool(p pool.BufferPool) {
 	fp.bufPool = p
 }
 
+func (fp *FilePublisher) SetMetrics(m *telemetry.Metrics) {
+	fp.metrics = m
+}
+
 func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallelWorkers int) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
 		if err := os.MkdirAll(fp.outputDir, 0755); err != nil {
-			fmt.Printf("File Engine Error: Failed to create output directory %s: %v\n", fp.outputDir, err)
+			slog.Error("failed to create output directory", "dir", fp.outputDir, "error", err)
 			return
 		}
 
@@ -79,7 +86,7 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 					var err error
 					file, err = os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 					if err != nil {
-						fmt.Printf("File Engine Error: Failed to open file for topic %s: %v\n", topic, err)
+						slog.Error("failed to open file for topic", "topic", topic, "error", err)
 						fp.mu.Unlock()
 						continue
 					}
@@ -148,5 +155,5 @@ func (fp *FilePublisher) Close() {
 		_ = file.Sync()
 		_ = file.Close()
 	}
-	fmt.Println("[TRANSPORT] All topic file sinks safely flushed and offline.")
+	slog.Info("file publisher closed")
 }

@@ -27,11 +27,15 @@ func (s *Simulator) StartDashboard(ctx context.Context, wg *sync.WaitGroup) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
+				chanLen := len(s.outChan)
+				chanCap := cap(s.outChan)
+				if s.metrics != nil {
+					s.metrics.SetBufferFill(chanLen, chanCap)
+				}
+
 				fmt.Print("\033[2J\033[1;1H")
 
 				uptime := time.Since(s.StartTime).Round(time.Second)
-				chanLen := len(s.outChan)
-				chanCap := cap(s.outChan)
 				chanPercent := int((float64(chanLen) / float64(chanCap)) * 100)
 
 				barSize := 20
@@ -60,7 +64,7 @@ func (s *Simulator) StartDashboard(ctx context.Context, wg *sync.WaitGroup) {
 
 					waveIndicator := ""
 					if prof.DynamicScaling {
-						waveIndicator = "[Dynamic]"
+						waveIndicator = " [Dynamic]"
 					}
 
 					fmt.Printf("%-15s %-30s %-12d %-15d%s\n",
