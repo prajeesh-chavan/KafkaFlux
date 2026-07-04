@@ -72,10 +72,14 @@ func genProductName() FieldGen {
 func genSKU() FieldGen {
 	categories := []string{"ELEC", "HOME", "CLTH", "FOOD", "TOYS", "MED", "OFFC"}
 	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
+		word := loremWords[r.Intn(len(loremWords))]
+		if len(word) < 3 {
+			word = word + "XYZ"
+		}
 		return fmt.Sprintf("%s-%04d-%s",
 			categories[r.Intn(len(categories))],
 			r.Intn(10000),
-			strings.ToUpper(string(loremWords[r.Intn(len(loremWords))][:3])),
+			strings.ToUpper(word[:3]),
 		)
 	}
 }
