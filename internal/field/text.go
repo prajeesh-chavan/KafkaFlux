@@ -7,17 +7,6 @@ import (
 	"time"
 )
 
-var loremWords = []string{
-	"lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing",
-	"elit", "sed", "do", "eiusmod", "tempor", "incididunt", "ut", "labore",
-	"et", "dolore", "magna", "aliqua", "enim", "ad", "minim", "veniam",
-	"quis", "nostrud", "exercitation", "ullamco", "laboris", "nisi", "ut",
-	"aliquip", "ex", "ea", "commodo", "consequat", "duis", "aute", "irure",
-	"reprehenderit", "voluptate", "velit", "esse", "cillum", "eu", "fugiat",
-	"nulla", "pariatur", "excepteur", "sint", "occaecat", "cupidatat", "non",
-	"proident", "sunt", "culpa", "qui", "officia", "deserunt", "mollit",
-}
-
 var productAdjectives = []string{
 	"Premium", "Eco", "Smart", "Ultra", "Pro", "Lite", "Advanced", "Classic",
 }
@@ -27,17 +16,19 @@ var productNouns = []string{
 }
 
 func genWord() FieldGen {
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
-		return loremWords[r.Intn(len(loremWords))]
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		return dl.RandomString(r, dl.LoremWords)
 	}
 }
 
 func genSentence() FieldGen {
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
 		n := r.Intn(10) + 5
 		words := make([]string, n)
 		for i := range words {
-			words[i] = loremWords[r.Intn(len(loremWords))]
+			words[i] = dl.RandomString(r, dl.LoremWords)
 		}
 		sentence := strings.Join(words, " ")
 		sentence = strings.ToUpper(sentence[:1]) + sentence[1:] + "."
@@ -46,14 +37,15 @@ func genSentence() FieldGen {
 }
 
 func genParagraph() FieldGen {
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
 		n := r.Intn(5) + 3
 		sentences := make([]string, n)
 		for i := range sentences {
 			s := r.Intn(10) + 5
 			words := make([]string, s)
 			for j := range words {
-				words[j] = loremWords[r.Intn(len(loremWords))]
+				words[j] = dl.RandomString(r, dl.LoremWords)
 			}
 			sentences[i] = strings.ToUpper(words[0][:1]) + words[0][1:] + " " + strings.Join(words[1:], " ") + "."
 		}
@@ -71,8 +63,9 @@ func genProductName() FieldGen {
 
 func genSKU() FieldGen {
 	categories := []string{"ELEC", "HOME", "CLTH", "FOOD", "TOYS", "MED", "OFFC"}
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
-		word := loremWords[r.Intn(len(loremWords))]
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		word := dl.RandomString(r, dl.LoremWords)
 		if len(word) < 3 {
 			word = word + "XYZ"
 		}

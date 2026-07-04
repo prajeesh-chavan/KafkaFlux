@@ -12,6 +12,7 @@ import (
 
 	"go-kafka-simulator/internal/config"
 	"go-kafka-simulator/internal/engine"
+	"go-kafka-simulator/internal/field"
 	"go-kafka-simulator/internal/pool"
 	"go-kafka-simulator/internal/telemetry"
 	"go-kafka-simulator/internal/transport"
@@ -29,6 +30,12 @@ func Run() {
 	profiles, err := config.LoadProfiles(cfg.Simulator.ProfilesDir)
 	if err != nil {
 		slog.Error("failed to load profiles", "error", err)
+		os.Exit(1)
+	}
+
+	_, err = field.InitDataLoader("data")
+	if err != nil {
+		slog.Error("failed to load data files", "error", err)
 		os.Exit(1)
 	}
 

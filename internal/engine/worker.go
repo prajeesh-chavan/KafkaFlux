@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"go-kafka-simulator/internal/config"
+	"go-kafka-simulator/internal/field"
 )
 
 func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *config.EntityProfile) {
@@ -64,6 +65,7 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 
 			payload := make(map[string]interface{})
 			payload["__registry"] = s.Registry
+			payload["__data"] = field.GetDataLoader()
 
 			for _, fieldOrder := range prof.Compiled {
 				val := fieldOrder.Gen(localRand, payload)

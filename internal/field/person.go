@@ -12,16 +12,6 @@ type NameBuilder struct {
 	Last  string
 }
 
-var defaultFirstNames = []string{
-	"Amit", "Neha", "Rahul", "Priya", "Vikram",
-	"Ananya", "Rohan", "Sneha", "Arjun", "Pooja",
-}
-
-var defaultLastNames = []string{
-	"Sharma", "Verma", "Chavan", "Joshi", "Patil",
-	"Mehta", "Kumar", "Singh", "Das", "Reddy",
-}
-
 func getOrCreateName(r *rand.Rand, state map[string]interface{}) NameBuilder {
 	if state == nil {
 		state = make(map[string]interface{})
@@ -29,9 +19,10 @@ func getOrCreateName(r *rand.Rand, state map[string]interface{}) NameBuilder {
 	if name, ok := state["__name"].(NameBuilder); ok {
 		return name
 	}
+	dl := getLoader(state)
 	name := NameBuilder{
-		First: defaultFirstNames[r.Intn(len(defaultFirstNames))],
-		Last:  defaultLastNames[r.Intn(len(defaultLastNames))],
+		First: dl.RandomString(r, dl.FirstNames),
+		Last:  dl.RandomString(r, dl.LastNames),
 	}
 	state["__name"] = name
 	return name

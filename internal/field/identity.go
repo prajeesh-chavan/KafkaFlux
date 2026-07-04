@@ -7,30 +7,7 @@ import (
 	"strings"
 )
 
-var companyNames = []string{
-	"Acme Corp", "Globex", "Initech", "Cyberdyne", "Wonka Industries",
-	"Stark Industries", "Wayne Enterprises", "Umbrella Corp", "Massive Dynamic",
-	"Hooli", "Dunder Mifflin", "Pied Piper", "Aperture Science",
-}
-
-var jobTitles = []string{
-	"Software Engineer", "Product Manager", "Data Analyst", "DevOps Engineer",
-	"Designer", "CTO", "CEO", "VP of Engineering", "Marketing Lead",
-	"Customer Success", "Sales Rep", "Accountant", "HR Manager",
-}
-
 var tlds = []string{".com", ".io", ".net", ".org", ".co", ".ai"}
-
-var userAgents = []string{
-	"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
-	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-	"Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-	"Mozilla/5.0 (iPad; CPU OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-	"PostmanRuntime/7.36.0",
-	"curl/8.4.0",
-	"python-requests/2.31.0",
-}
 
 func genBoolean() FieldGen {
 	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
@@ -39,14 +16,16 @@ func genBoolean() FieldGen {
 }
 
 func genCompany() FieldGen {
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
-		return companyNames[r.Intn(len(companyNames))]
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		return dl.RandomString(r, dl.Companies)
 	}
 }
 
 func genCompanyEmail() FieldGen {
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
-		name := strings.ToLower(companyNames[r.Intn(len(companyNames))])
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		name := strings.ToLower(dl.RandomString(r, dl.Companies))
 		name = strings.ReplaceAll(name, " ", "")
 		name = strings.ReplaceAll(name, ".", "")
 		return "contact@" + name + tlds[r.Intn(len(tlds))]
@@ -54,8 +33,9 @@ func genCompanyEmail() FieldGen {
 }
 
 func genJobTitle() FieldGen {
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
-		return jobTitles[r.Intn(len(jobTitles))]
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		return dl.RandomString(r, dl.JobTitles)
 	}
 }
 
@@ -81,8 +61,9 @@ func genIPv6() FieldGen {
 }
 
 func genUserAgent() FieldGen {
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
-		return userAgents[r.Intn(len(userAgents))]
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		return dl.RandomString(r, dl.UserAgents)
 	}
 }
 
@@ -116,8 +97,9 @@ func genHexColor() FieldGen {
 }
 
 func genRegex() FieldGen {
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
-		return fmt.Sprintf("evt-%s-%d", strings.ToLower(companyNames[r.Intn(len(companyNames))]), r.Intn(99999))
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		return fmt.Sprintf("evt-%s-%d", strings.ToLower(dl.RandomString(r, dl.Companies)), r.Intn(99999))
 	}
 }
 
@@ -128,22 +110,25 @@ func genSSN() FieldGen {
 }
 
 func genCurrency() FieldGen {
-	currencies := []string{"USD", "EUR", "GBP", "INR", "JPY", "CAD", "AUD", "CNY", "BRL", "CHF"}
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		currencies := dl.Currencies()
 		return currencies[r.Intn(len(currencies))]
 	}
 }
 
 func genLanguage() FieldGen {
-	languages := []string{"en", "es", "fr", "de", "zh", "ja", "pt", "ru", "ar", "hi"}
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		languages := dl.Languages()
 		return languages[r.Intn(len(languages))]
 	}
 }
 
 func genCountryCode() FieldGen {
-	codes := []string{"US", "IN", "GB", "DE", "FR", "JP", "CN", "BR", "CA", "AU"}
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		codes := dl.CountryCodesList()
 		return codes[r.Intn(len(codes))]
 	}
 }
@@ -188,6 +173,7 @@ func genHTTPStatus() FieldGen {
 
 func genFullName() FieldGen {
 	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
 		prefix := ""
 		switch r.Intn(3) {
 		case 0:
@@ -195,14 +181,15 @@ func genFullName() FieldGen {
 		case 1:
 			prefix = "Ms. "
 		}
-		return prefix + defaultFirstNames[r.Intn(len(defaultFirstNames))] + " " + defaultLastNames[r.Intn(len(defaultLastNames))]
+		return prefix + dl.RandomString(r, dl.FirstNames) + " " + dl.RandomString(r, dl.LastNames)
 	}
 }
 
 func genUsername() FieldGen {
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
-		first := strings.ToLower(defaultFirstNames[r.Intn(len(defaultFirstNames))])
-		last := strings.ToLower(defaultLastNames[r.Intn(len(defaultLastNames))])
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		first := strings.ToLower(dl.RandomString(r, dl.FirstNames))
+		last := strings.ToLower(dl.RandomString(r, dl.LastNames))
 		sep := []string{".", "_", "-", ""}[r.Intn(4)]
 		return first + sep + last + strconv.Itoa(r.Intn(9999))
 	}
@@ -223,8 +210,9 @@ func genPassword() FieldGen {
 func genURL() FieldGen {
 	protocols := []string{"https", "http"}
 	paths := []string{"/", "/about", "/products", "/blog", "/contact", "/login", "/api/v1/data"}
-	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
-		company := strings.ToLower(companyNames[r.Intn(len(companyNames))])
+	return func(r *rand.Rand, s map[string]interface{}) interface{} {
+		dl := getLoader(s)
+		company := strings.ToLower(dl.RandomString(r, dl.Companies))
 		company = strings.ReplaceAll(company, " ", "")
 		return fmt.Sprintf("%s://%s%s%s",
 			protocols[r.Intn(len(protocols))],
