@@ -46,19 +46,22 @@ func CompileField(cfg FieldConfig) (FieldGen, bool, error) {
 		if cfg.Mean == nil || cfg.Stddev == nil {
 			return nil, false, fmt.Errorf("normal requires mean and stddev")
 		}
-		return compileNormalDistribution(*cfg.Mean, *cfg.Stddev, cfg.Min)
+		gen, err := compileNormalDistribution(*cfg.Mean, *cfg.Stddev, cfg.Min)
+		return gen, false, err
 	case "poisson":
 		if cfg.Lambda == nil {
 			return nil, false, fmt.Errorf("poisson requires lambda")
 		}
-		return compilePoissonDistribution(*cfg.Lambda)
+		gen, err := compilePoissonDistribution(*cfg.Lambda)
+		return gen, false, err
 	case "weighted":
 		if len(cfg.Values) == 0 {
 			return nil, false, fmt.Errorf("weighted requires at least one value")
 		}
 		return compileWeightedChoice(cfg.Values), false, nil
 	case "conditional":
-		return compileConditional(cfg), true, nil
+		gen, err := compileConditional(cfg)
+		return gen, true, err
 	default:
 		return func(r *rand.Rand, _ map[string]interface{}) interface{} { return cfg.Type }, false, nil
 	}
