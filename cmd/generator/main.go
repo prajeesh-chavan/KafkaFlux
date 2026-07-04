@@ -7,21 +7,10 @@ import (
 	"strconv"
 	"strings"
 
+	"go-kafka-simulator/internal/config"
+	"go-kafka-simulator/internal/field"
 	"gopkg.in/yaml.v3"
 )
-
-type ProfileWeightedItem struct {
-	Value  interface{} `yaml:"value"`
-	Weight float64     `yaml:"weight"`
-}
-
-type EntityProfile struct {
-	Entity         string                           `yaml:"entity"`
-	Topic          string                           `yaml:"topic"`
-	TargetEPS      int                              `yaml:"target_eps"`
-	DynamicScaling bool                             `yaml:"dynamic_scaling"`
-	Fields         map[string][]ProfileWeightedItem `yaml:"fields"`
-}
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
@@ -29,8 +18,8 @@ func main() {
 	fmt.Println("     Welcome to the KafkaFlux Profile Generator     ")
 	fmt.Println("====================================================")
 
-	profile := EntityProfile{
-		Fields: make(map[string][]ProfileWeightedItem),
+	profile := config.EntityProfile{
+		Fields: make(map[string][]field.ProfileWeightedItem),
 	}
 
 	// 1. Basic Metadata
@@ -69,7 +58,7 @@ func main() {
 		
 		choice := askInput(reader, "Choose option [1-3]: ")
 
-		var items []ProfileWeightedItem
+		var items []field.ProfileWeightedItem
 
 		switch choice {
 		case "2":
@@ -81,7 +70,7 @@ func main() {
 				wStr := askInput(reader, "    Enter Weight Allocation (%): ")
 				weight, _ := strconv.ParseFloat(wStr, 64)
 
-				items = append(items, ProfileWeightedItem{Value: val, Weight: weight})
+				items = append(items, field.ProfileWeightedItem{Value: val, Weight: weight})
 				remaining -= weight
 				if remaining <= 0 {
 					break
@@ -97,11 +86,11 @@ func main() {
 			}
 		case "3":
 			expr := askInput(reader, "    Enter Conditional Rule Expression:\n    Example: order_status = COMPLETED -> timestamp; default -> null\n    👉 ")
-			items = append(items, ProfileWeightedItem{Value: fmt.Sprintf("conditional(%s)", expr), Weight: 100})
+			items = append(items, field.ProfileWeightedItem{Value: fmt.Sprintf("conditional(%s)", expr), Weight: 100})
 		default:
 			// Standard Generator Types
 			genType := askInput(reader, "    Enter Core Keyword (uuid, int, float, timestamp): ")
-			items = append(items, ProfileWeightedItem{Value: genType, Weight: 100})
+			items = append(items, field.ProfileWeightedItem{Value: genType, Weight: 100})
 		}
 
 		profile.Fields[fieldName] = items
