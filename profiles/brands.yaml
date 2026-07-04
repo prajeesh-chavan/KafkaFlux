@@ -1,0 +1,31 @@
+entity: brands
+topic: "telemetry.ecommerce.brands"
+target_eps: 1
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  brand_id:
+    type: uuid
+    publish_to: brands
+
+  brand_name:
+    value: company_name
+
+  description:
+    value: sentence
+
+  is_active:
+    type: weighted
+    values:
+      "true": 98
+      "false": 2
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp

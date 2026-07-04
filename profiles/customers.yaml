@@ -9,49 +9,39 @@ chaos:
 
 fields:
   customer_id:
-    - value: uuid
-      weight: 100
-      state_action: publish
-      state_pool: customers
+    type: uuid
+    publish_to: customers
 
   first_name:
-    - value: first_name # Uses our high-performance PII generator
-      weight: 100
+    type: first_name
 
   last_name:
-    - value: last_name
-      weight: 100
+    type: last_name
 
   email:
-    - value: email # Uses our context-aware username generator
-      weight: 100
+    type: email
 
   phone:
-    - value: phone # Uses our standard 10-digit mobile number rule
-      weight: 100
+    type: phone
 
   customer_status:
-    - value: ACTIVE
-      weight: 85
-    - value: INACTIVE
-      weight: 10
-    - value: BLOCKED
-      weight: 5
+    type: weighted
+    values:
+      ACTIVE: 85
+      INACTIVE: 10
+      BLOCKED: 5
 
   registered_at:
-    - value: timestamp
-      weight: 100
+    type: timestamp
 
   created_at:
-    - value: timestamp
-      weight: 100
+    type: timestamp
 
   updated_at:
-    - value: timestamp
-      weight: 100
+    type: timestamp
 
   is_deleted:
-    - value: false
-      weight: 98
-    - value: true
-      weight: 2
+    type: weighted
+    values:
+      "false": 98
+      "true": 2

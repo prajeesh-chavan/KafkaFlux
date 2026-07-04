@@ -8,10 +8,22 @@ type PoolFetcher interface {
 
 type FieldGen func(r *rand.Rand, state map[string]interface{}) interface{}
 
-type ProfileWeightedItem struct {
-	Value       interface{} `yaml:"value"`
-	Weight      float64     `yaml:"weight"`
-	Expression  string      `yaml:"expression,omitempty"`
-	StatePool   string      `yaml:"state_pool,omitempty"`
-	StateAction string      `yaml:"state_action,omitempty"`
+type FieldConfig struct {
+	Type      string             `yaml:"type,omitempty"`
+	Value     interface{}        `yaml:"value,omitempty"`
+	PublishTo string             `yaml:"publish_to,omitempty"`
+	Min       *float64           `yaml:"min,omitempty"`
+	Max       *float64           `yaml:"max,omitempty"`
+	Mean      *float64           `yaml:"mean,omitempty"`
+	Stddev    *float64           `yaml:"stddev,omitempty"`
+	Lambda    *float64           `yaml:"lambda,omitempty"`
+	PoolName  string             `yaml:"pool,omitempty"`
+	Values    map[string]float64 `yaml:"values,omitempty"`
+	Rules     []ConditionalRule  `yaml:"rules,omitempty"`
+	Default   *FieldConfig       `yaml:"default,omitempty"`
+}
+
+type ConditionalRule struct {
+	When string       `yaml:"when"`
+	Then *FieldConfig `yaml:"then"`
 }

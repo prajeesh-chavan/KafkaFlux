@@ -1,0 +1,45 @@
+entity: product_variants
+topic: "telemetry.ecommerce.product_variants"
+target_eps: 15
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  product_variant_id:
+    type: uuid
+    publish_to: product_variants
+
+  product_id:
+    type: pool
+    pool: products
+
+  sku:
+    type: int
+
+  barcode:
+    type: uuid
+
+  variant_name:
+    type: weighted
+    values:
+      "Small / Black": 25
+      "Medium / White": 50
+      "Large / Silver": 25
+
+  weight:
+    type: normal
+    mean: 1.5
+    stddev: 0.4
+    min: 0.1
+
+  is_active:
+    type: weighted
+    values:
+      "true": 95
+      "false": 5
+
+  created_at:
+    type: timestamp

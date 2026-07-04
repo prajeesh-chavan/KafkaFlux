@@ -3,75 +3,63 @@ package field
 import (
 	"fmt"
 	"math/rand"
-	"strconv"
-	"strings"
 )
 
-func CompileStructuredRule(items []ProfileWeightedItem) (FieldGen, bool, error) {
-	if len(items) == 0 {
-		return func(r *rand.Rand, s map[string]interface{}) interface{} { return "" }, false, nil
+func CompileField(cfg FieldConfig) (FieldGen, bool, error) {
+	if cfg.Type == "" && cfg.Values != nil {
+		return compileWeightedChoice(cfg.Values), false, nil
+	}
+	if cfg.Type == "" {
+		return func(r *rand.Rand, _ map[string]interface{}) interface{} { return cfg.Value }, false, nil
 	}
 
-	if len(items) == 1 {
-		firstValStr := fmt.Sprintf("%v", items[0].Value)
-
-		if firstValStr == "uuid" {
-			return genUUID(), false, nil
+	switch cfg.Type {
+	case "uuid":
+		return genUUID(), false, nil
+	case "int":
+		return genInt(), false, nil
+	case "float":
+		return genFloat(), false, nil
+	case "timestamp":
+		return genTimestamp(), false, nil
+	case "first_name":
+		return genFirstName(), false, nil
+	case "last_name":
+		return genLastName(), false, nil
+	case "name":
+		return genName(), false, nil
+	case "email":
+		return genEmail(), false, nil
+	case "phone":
+		return genPhone(), false, nil
+	case "range":
+		if cfg.Min == nil || cfg.Max == nil {
+			return nil, false, fmt.Errorf("range requires min and max")
 		}
-		if firstValStr == "int" {
-			return genInt(), false, nil
+		return genRange(int(*cfg.Min), int(*cfg.Max)), false, nil
+	case "pool":
+		if cfg.PoolName == "" {
+			return nil, false, fmt.Errorf("pool requires a pool name")
 		}
-		if firstValStr == "float" {
-			return genFloat(), false, nil
+		return genPool(cfg.PoolName), false, nil
+	case "normal":
+		if cfg.Mean == nil || cfg.Stddev == nil {
+			return nil, false, fmt.Errorf("normal requires mean and stddev")
 		}
-		if firstValStr == "timestamp" {
-			return genTimestamp(), false, nil
+		return compileNormalDistribution(*cfg.Mean, *cfg.Stddev, cfg.Min)
+	case "poisson":
+		if cfg.Lambda == nil {
+			return nil, false, fmt.Errorf("poisson requires lambda")
 		}
-		if firstValStr == "first_name" {
-			return genFirstName(), false, nil
+		return compilePoissonDistribution(*cfg.Lambda)
+	case "weighted":
+		if len(cfg.Values) == 0 {
+			return nil, false, fmt.Errorf("weighted requires at least one value")
 		}
-		if firstValStr == "last_name" {
-			return genLastName(), false, nil
-		}
-		if firstValStr == "name" {
-			return genName(), false, nil
-		}
-		if firstValStr == "email" {
-			return genEmail(), false, nil
-		}
-		if firstValStr == "phone" {
-			return genPhone(), false, nil
-		}
-
-		if strings.HasPrefix(firstValStr, "range(") && strings.HasSuffix(firstValStr, ")") {
-			bounds := strings.Split(firstValStr[6:len(firstValStr)-1], ",")
-			min, _ := strconv.Atoi(strings.TrimSpace(bounds[0]))
-			max, _ := strconv.Atoi(strings.TrimSpace(bounds[1]))
-			return genRange(min, max), false, nil
-		}
-
-		if strings.HasPrefix(firstValStr, "pool(") && strings.HasSuffix(firstValStr, ")") {
-			targetPool := firstValStr[5 : len(firstValStr)-1]
-			return genPool(targetPool), false, nil
-		}
-
-		if strings.HasPrefix(firstValStr, "normal_distribution(") && strings.HasSuffix(firstValStr, ")") {
-			gen, err := compileNormalDistribution(firstValStr[20 : len(firstValStr)-1])
-			return gen, false, err
-		}
-
-		if strings.HasPrefix(firstValStr, "poisson_distribution(") && strings.HasSuffix(firstValStr, ")") {
-			gen, err := compilePoissonDistribution(firstValStr[21 : len(firstValStr)-1])
-			return gen, false, err
-		}
-
-		if strings.HasPrefix(firstValStr, "conditional(") && strings.HasSuffix(firstValStr, ")") {
-			gen, err := compileConditional(firstValStr[12 : len(firstValStr)-1])
-			return gen, true, err
-		}
-
-		return func(r *rand.Rand, s map[string]interface{}) interface{} { return items[0].Value }, false, nil
+		return compileWeightedChoice(cfg.Values), false, nil
+	case "conditional":
+		return compileConditional(cfg), true, nil
+	default:
+		return func(r *rand.Rand, _ map[string]interface{}) interface{} { return cfg.Type }, false, nil
 	}
-
-	return compileWeightedChoice(items), false, nil
 }

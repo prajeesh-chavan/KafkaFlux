@@ -1,0 +1,41 @@
+entity: products
+topic: "telemetry.ecommerce.products"
+target_eps: 5
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  product_id:
+    type: uuid
+    publish_to: products
+
+  brand_id:
+    type: uuid
+    publish_to: brands
+
+  category_id:
+    type: uuid
+    publish_to: categories
+
+  product_name:
+    type: weighted
+    values:
+      "Premium Alphanumeric Gadget": 40
+      "Eco Eco-Friendly Essentials": 30
+      "Hyper Sport Performance Pack": 30
+
+  product_status:
+    type: weighted
+    values:
+      ACTIVE: 90
+      DRAFT: 7
+      DISCONTINUED: 3
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp

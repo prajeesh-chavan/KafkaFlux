@@ -3,25 +3,36 @@ package field
 import (
 	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 )
 
-func compileWeightedChoice(items []ProfileWeightedItem) FieldGen {
+func compileWeightedChoice(values map[string]float64) FieldGen {
+	if len(values) == 0 {
+		return func(r *rand.Rand, _ map[string]interface{}) interface{} { return nil }
+	}
+
+	keys := make([]string, 0, len(values))
+	for k := range values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
 	var totalWeight float64
-	for _, item := range items {
-		totalWeight += item.Weight
+	for _, k := range keys {
+		totalWeight += values[k]
 	}
 
 	if totalWeight == 0 {
 		return func(r *rand.Rand, _ map[string]interface{}) interface{} {
-			return items[r.Intn(len(items))].Value
+			return keys[r.Intn(len(keys))]
 		}
 	}
 
-	cdf := make([]float64, len(items))
+	cdf := make([]float64, len(keys))
 	currentSum := 0.0
-	for i, item := range items {
-		currentSum += item.Weight / totalWeight
+	for i, k := range keys {
+		currentSum += values[k] / totalWeight
 		cdf[i] = currentSum
 	}
 
@@ -29,17 +40,17 @@ func compileWeightedChoice(items []ProfileWeightedItem) FieldGen {
 		val := r.Float64()
 		for i, ceiling := range cdf {
 			if val <= ceiling {
-				return items[i].Value
+				return keys[i]
 			}
 		}
-		return items[len(items)-1].Value
+		return keys[len(keys)-1]
 	}
 }
 
-func genPool(targetPool string) FieldGen {
+func genPool(poolName string) FieldGen {
 	return func(r *rand.Rand, s map[string]interface{}) interface{} {
 		if reg, ok := s["__registry"].(PoolFetcher); ok {
-			if val, found := reg.Fetch(targetPool); found {
+			if val, found := reg.Fetch(poolName); found {
 				return val
 			}
 		}
@@ -47,8 +58,7 @@ func genPool(targetPool string) FieldGen {
 	}
 }
 
-func compileConditional(args string) (FieldGen, error) {
-	branches := strings.Split(args, ";")
+func compileConditional(cfg FieldConfig) (FieldGen, error) {
 	type conditionalBranch struct {
 		targetField string
 		matchValue  string
@@ -58,43 +68,34 @@ func compileConditional(args string) (FieldGen, error) {
 	var logicRoutes []conditionalBranch
 	var fallbackGen FieldGen
 
-	for _, branch := range branches {
-		branch = strings.TrimSpace(branch)
-		if branch == "" {
-			continue
+	for _, rule := range cfg.Rules {
+		parts := strings.SplitN(rule.When, "==", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid conditional rule: %s", rule.When)
 		}
+		targetField := strings.TrimSpace(parts[0])
+		matchValue := strings.TrimSpace(parts[1])
 
-		if strings.HasPrefix(branch, "default ->") {
-			parts := strings.Split(branch, "->")
-			if len(parts) < 2 {
-				return nil, fmt.Errorf("invalid default branch syntax, missing output rule: %s", branch)
-			}
-			rawFallback := strings.TrimSpace(parts[1])
-			compiled, _, _ := CompileStructuredRule([]ProfileWeightedItem{{Value: rawFallback}})
-			fallbackGen = compiled
-			continue
+		if rule.Then == nil {
+			return nil, fmt.Errorf("conditional rule missing then: %s", rule.When)
 		}
-
-		if !strings.Contains(branch, "->") {
-			return nil, fmt.Errorf("missing arrow '->' transition routing in branch: %s", branch)
+		compiled, _, err := CompileField(*rule.Then)
+		if err != nil {
+			return nil, fmt.Errorf("conditional then: %w", err)
 		}
-		parts := strings.Split(branch, "->")
-
-		if !strings.Contains(parts[0], "=") {
-			return nil, fmt.Errorf("missing '=' relational condition checking operator in branch: %s", branch)
-		}
-		conditionParts := strings.Split(parts[0], "=")
-
-		targetField := strings.TrimSpace(conditionParts[0])
-		matchValue := strings.TrimSpace(conditionParts[1])
-		rawGenerationRule := strings.TrimSpace(parts[1])
-
-		compiledRule, _, _ := CompileStructuredRule([]ProfileWeightedItem{{Value: rawGenerationRule}})
 		logicRoutes = append(logicRoutes, conditionalBranch{
 			targetField: targetField,
 			matchValue:  matchValue,
-			generator:   compiledRule,
+			generator:   compiled,
 		})
+	}
+
+	if cfg.Default != nil {
+		compiled, _, err := CompileField(*cfg.Default)
+		if err != nil {
+			return nil, fmt.Errorf("conditional default: %w", err)
+		}
+		fallbackGen = compiled
 	}
 
 	return func(r *rand.Rand, state map[string]interface{}) interface{} {

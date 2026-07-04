@@ -19,10 +19,9 @@ func main() {
 	fmt.Println("====================================================")
 
 	profile := config.EntityProfile{
-		Fields: make(map[string][]field.ProfileWeightedItem),
+		Fields: make(map[string]field.FieldConfig),
 	}
 
-	// 1. Basic Metadata
 	profile.Entity = askInput(reader, "Enter Entity Name (e.g., orders): ")
 	profile.Topic = askInput(reader, fmt.Sprintf("Enter Kafka Topic [telemetry.%s]: ", profile.Entity))
 	if profile.Topic == "" {
@@ -37,73 +36,117 @@ func main() {
 		}
 	}
 
-	scaleStr := askInput(reader, "Enable Dynamic Day/Night Scaling Waves? (y/n) [y]: ")
+	scaleStr := askInput(reader, "Enable Dynamic Scaling? (y/n) [y]: ")
 	profile.DynamicScaling = true
 	if strings.ToLower(scaleStr) == "n" {
 		profile.DynamicScaling = false
 	}
 
-	// 2. Interactive Field Loop
-	fmt.Println("\n--- 🛠️  Field Configuration Loop ---")
+	fmt.Println("\n--- Field Configuration Loop ---")
 	for {
 		fieldName := askInput(reader, "\nEnter Field Name (or press Enter to finish): ")
 		if fieldName == "" {
 			break
 		}
 
-		fmt.Println("Select Generator Strategy Type:")
-		fmt.Println("  [1] Core Dynamic Type (uuid, int, float, timestamp)")
-		fmt.Println("  [2] Categorical Values / Weighted Enum (e.g., STATUS)")
-		fmt.Println("  [3] Conditional / Dependent Expression")
-		
-		choice := askInput(reader, "Choose option [1-3]: ")
+		fmt.Println("Select Generator Type:")
+		fmt.Println("  [1] Primitives (uuid, int, float, timestamp, first_name, last_name, name, email, phone)")
+		fmt.Println("  [2] Distribution (range, normal, poisson)")
+		fmt.Println("  [3] Reference Pool (pool)")
+		fmt.Println("  [4] Weighted Enum")
+		fmt.Println("  [5] Conditional Expression")
+		fmt.Println("  [6] Literal Value")
 
-		var items []field.ProfileWeightedItem
+		choice := askInput(reader, "Choose option [1-6]: ")
 
 		switch choice {
-		case "2":
-			// Weighted Loop
-			var remaining float64 = 100
-			fmt.Println("  (Note: Total weights must sum up to 100)")
-			for remaining > 0 {
-				val := askInput(reader, fmt.Sprintf("    Enter Enum Value (Remaining Weight: %.0f%%): ", remaining))
-				wStr := askInput(reader, "    Enter Weight Allocation (%): ")
-				weight, _ := strconv.ParseFloat(wStr, 64)
-
-				items = append(items, field.ProfileWeightedItem{Value: val, Weight: weight})
-				remaining -= weight
-				if remaining <= 0 {
-					break
-				}
-				addMore := askInput(reader, "    Add another enum choice variant? (y/n): ")
-				if strings.ToLower(addMore) != "y" {
-					if remaining > 0 {
-						fmt.Printf("    ⚠️ Warning: Auto-allocating remaining %.0f%% to last element.\n", remaining)
-						items[len(items)-1].Weight += remaining
-					}
-					break
-				}
+		case "1":
+			genType := askInput(reader, "  Enter type (uuid, int, float, timestamp, first_name, last_name, name, email, phone): ")
+			cfg := field.FieldConfig{Type: genType}
+			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			if pub != "" {
+				cfg.PublishTo = pub
 			}
-		case "3":
-			expr := askInput(reader, "    Enter Conditional Rule Expression:\n    Example: order_status = COMPLETED -> timestamp; default -> null\n    👉 ")
-			items = append(items, field.ProfileWeightedItem{Value: fmt.Sprintf("conditional(%s)", expr), Weight: 100})
-		default:
-			// Standard Generator Types
-			genType := askInput(reader, "    Enter Core Keyword (uuid, int, float, timestamp): ")
-			items = append(items, field.ProfileWeightedItem{Value: genType, Weight: 100})
-		}
+			profile.Fields[fieldName] = cfg
 
-		profile.Fields[fieldName] = items
+		case "2":
+			distType := askInput(reader, "  Enter distribution (range, normal, poisson): ")
+			switch distType {
+			case "range":
+				minStr := askInput(reader, "  Min: ")
+				maxStr := askInput(reader, "  Max: ")
+				min, _ := strconv.ParseFloat(minStr, 64)
+				max, _ := strconv.ParseFloat(maxStr, 64)
+				profile.Fields[fieldName] = field.FieldConfig{Type: "range", Min: &min, Max: &max}
+			case "normal":
+				meanStr := askInput(reader, "  Mean: ")
+				stddevStr := askInput(reader, "  Stddev: ")
+				mean, _ := strconv.ParseFloat(meanStr, 64)
+				stddev, _ := strconv.ParseFloat(stddevStr, 64)
+				minStr := askInput(reader, "  Min clamp (leave blank if none): ")
+				cfg := field.FieldConfig{Type: "normal", Mean: &mean, Stddev: &stddev}
+				if minStr != "" {
+					min, _ := strconv.ParseFloat(minStr, 64)
+					cfg.Min = &min
+				}
+				profile.Fields[fieldName] = cfg
+			case "poisson":
+				lambdaStr := askInput(reader, "  Lambda: ")
+				lambda, _ := strconv.ParseFloat(lambdaStr, 64)
+				profile.Fields[fieldName] = field.FieldConfig{Type: "poisson", Lambda: &lambda}
+			}
+
+		case "3":
+			poolName := askInput(reader, "  Pool name: ")
+			profile.Fields[fieldName] = field.FieldConfig{Type: "pool", PoolName: poolName}
+
+		case "4":
+			values := make(map[string]float64)
+			fmt.Println("  Enter value/weight pairs (blank value to finish):")
+			for {
+				val := askInput(reader, "    Value: ")
+				if val == "" {
+					break
+				}
+				wStr := askInput(reader, "    Weight: ")
+				weight, _ := strconv.ParseFloat(wStr, 64)
+				values[val] = weight
+			}
+			profile.Fields[fieldName] = field.FieldConfig{Type: "weighted", Values: values}
+
+		case "5":
+			fmt.Println("  Enter conditional rules (blank when to finish):")
+			var rules []field.ConditionalRule
+			for {
+				when := askInput(reader, "    When (e.g., status == COMPLETED): ")
+				if when == "" {
+					break
+				}
+				thenType := askInput(reader, "    Then type (e.g., timestamp): ")
+				rules = append(rules, field.ConditionalRule{
+					When: when,
+					Then: &field.FieldConfig{Type: thenType},
+				})
+			}
+			cfg := field.FieldConfig{Type: "conditional", Rules: rules}
+			def := askInput(reader, "  Default type (leave blank for null): ")
+			if def != "" {
+				cfg.Default = &field.FieldConfig{Type: def}
+			}
+			profile.Fields[fieldName] = cfg
+
+		default:
+			literal := askInput(reader, "  Literal value: ")
+			profile.Fields[fieldName] = field.FieldConfig{Value: literal}
+		}
 	}
 
-	// 3. Export to File
 	filename := fmt.Sprintf("profiles/%s.yaml", profile.Entity)
-	// Create config folder if missing
 	_ = os.MkdirAll("profiles", os.ModePerm)
 
 	file, err := os.Create(filename)
 	if err != nil {
-		fmt.Printf("❌ Failed to create file: %v\n", err)
+		fmt.Printf("Failed to create file: %v\n", err)
 		return
 	}
 	defer file.Close()
@@ -111,13 +154,11 @@ func main() {
 	encoder := yaml.NewEncoder(file)
 	encoder.SetIndent(2)
 	if err := encoder.Encode(profile); err != nil {
-		fmt.Printf("❌ Error serializing YAML: %v\n", err)
+		fmt.Printf("Error serializing YAML: %v\n", err)
 		return
 	}
 
-	fmt.Println("\n===================================================================")
-	fmt.Printf(" Success! Profile generated and saved clean at: %s\n", filename)
-	fmt.Println("=====================================================================")
+	fmt.Printf("\nProfile saved at: %s\n", filename)
 }
 
 func askInput(reader *bufio.Reader, prompt string) string {

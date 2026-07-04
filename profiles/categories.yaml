@@ -1,0 +1,42 @@
+entity: categories
+topic: "telemetry.ecommerce.categories"
+target_eps: 1
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  category_id:
+    type: uuid
+    publish_to: categories
+
+  parent_category_id:
+    type: uuid
+    publish_to: categories
+
+  category_name:
+    value: word
+
+  category_description:
+    value: sentence
+
+  category_level:
+    type: weighted
+    values:
+      "1": 50
+      "2": 30
+      "3": 20
+
+  is_active:
+    type: weighted
+    values:
+      "true": 98
+      "false": 2
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp

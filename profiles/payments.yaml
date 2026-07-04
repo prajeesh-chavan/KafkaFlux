@@ -1,0 +1,47 @@
+entity: payments
+topic: "telemetry.ecommerce.payments"
+target_eps: 45
+dynamic_scaling: true
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  payment_id:
+    type: uuid
+
+  order_id:
+    type: pool
+    pool: orders
+
+  customer_id:
+    type: pool
+    pool: customers
+
+  payment_provider:
+    type: weighted
+    values:
+      STRIPE: 50
+      RAZORPAY: 40
+      PAYPAL: 10
+
+  payment_method:
+    type: weighted
+    values:
+      CARD: 45
+      UPI: 45
+      WALLET: 10
+
+  payment_status:
+    type: weighted
+    values:
+      CAPTURED: 85
+      PENDING: 5
+      FAILED: 10
+
+  amount:
+    type: float
+
+  processed_at:
+    type: timestamp

@@ -1,40 +1,91 @@
-entity: "orders"
+entity: orders
 topic: "telemetry.ecommerce.orders"
-target_eps: 150
+target_eps: 50
+dynamic_scaling: true
+
+chaos:
+  drop_percentage: 1.0
+  corrupt_fields: {}
 
 fields:
-  # Metadata Generators
   order_id:
-    - { value: "uuid" }
-  customer_id:
-    - { value: "uuid" }
-  associated_session:
-    - value: "pool(active_sessions)"
+    type: uuid
+    publish_to: orders
 
-  # Clean Categorical Distributions
+  order_number:
+    type: int
+
+  customer_id:
+    type: pool
+    pool: customers
+
+  sales_channel_id:
+    type: uuid
+
   order_status:
-    - { value: "COMPLETED", weight: 70 }
-    - { value: "PROCESSING", weight: 15 }
-    - { value: "CONFIRMED", weight: 8 }
-    - { value: "CANCELLED", weight: 7 }
+    type: weighted
+    values:
+      CREATED: 20
+      CONFIRMED: 20
+      PROCESSING: 25
+      COMPLETED: 30
+      CANCELLED: 5
+
+  payment_status:
+    type: weighted
+    values:
+      PENDING: 20
+      PAID: 70
+      FAILED: 10
+
+  fulfillment_status:
+    type: weighted
+    values:
+      UNFULFILLED: 30
+      FULFILLED: 70
 
   currency_code:
-    - { value: "USD", weight: 70 }
-    - { value: "EUR", weight: 20 }
-    - { value: "INR", weight: 10 }
+    type: weighted
+    values:
+      USD: 50
+      INR: 50
 
-  # Baseline Pricing Sizing Dimension
-  subtotal_tier:
-    - { value: "budget", weight: 60 }
-    - { value: "mid", weight: 30 }
-    - { value: "premium", weight: 10 }
-
-  # Contextual Financial Generation Mapping (Pushed to back of pool automatically)
   subtotal_amount:
-    - { value: "conditional(subtotal_tier=budget -> range(10,50); subtotal_tier=mid -> range(50,200); default -> range(200,1000))" }
+    type: float
 
   shipping_amount:
-    - { value: "conditional(subtotal_tier=budget -> 5.99; default -> 0.0)" }
+    type: normal
+    mean: 15.0
+    stddev: 3.5
+    min: 0.0
 
   tax_amount:
-    - { value: "normal_distribution(mean=12.50,stddev=3.5,min=0.0)" }
+    type: normal
+    mean: 8.5
+    stddev: 2.0
+    min: 1.0
+
+  discount_amount:
+    type: range
+    min: 0
+    max: 25
+
+  placed_at:
+    type: timestamp
+
+  created_at:
+    type: timestamp
+
+  completed_at:
+    type: conditional
+    rules:
+      - when: order_status == COMPLETED
+        then:
+          type: timestamp
+
+  cancelled_at:
+    type: conditional
+    rules:
+      - when: order_status == CANCELLED
+        then:
+          type: timestamp

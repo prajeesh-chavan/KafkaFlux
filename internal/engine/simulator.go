@@ -145,9 +145,9 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 
 				payload[fieldOrder.Name] = val
 
-				if rules, ok := prof.Fields[fieldOrder.Name]; ok && len(rules) == 1 {
-					if rules[0].StateAction == "publish" && rules[0].StatePool != "" {
-						s.Registry.Publish(rules[0].StatePool, fmt.Sprintf("%v", val))
+				if cfg, ok := prof.Fields[fieldOrder.Name]; ok {
+					if cfg.PublishTo != "" {
+						s.Registry.Publish(cfg.PublishTo, fmt.Sprintf("%v", val))
 					}
 				}
 			}

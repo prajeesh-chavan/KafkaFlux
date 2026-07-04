@@ -10,13 +10,13 @@ import (
 )
 
 type EntityProfile struct {
-	Entity         string                              `yaml:"entity"`
-	Topic          string                              `yaml:"topic"`
-	TargetEPS      int                                 `yaml:"target_eps"`
-	DynamicScaling bool                                `yaml:"dynamic_scaling"`
-	Chaos          ChaosConfig                          `yaml:"chaos"`
-	Fields         map[string][]field.ProfileWeightedItem `yaml:"fields"`
-	Compiled       []FieldOrder                           `yaml:"-"`
+	Entity         string                     `yaml:"entity"`
+	Topic          string                     `yaml:"topic"`
+	TargetEPS      int                        `yaml:"target_eps"`
+	DynamicScaling bool                       `yaml:"dynamic_scaling"`
+	Chaos          ChaosConfig                `yaml:"chaos"`
+	Fields         map[string]field.FieldConfig `yaml:"fields"`
+	Compiled       []FieldOrder               `yaml:"-"`
 }
 
 type FieldOrder struct {
@@ -33,7 +33,6 @@ type ChaosConfig struct {
 	CorruptFields  map[string]FieldCorruptionConfig `yaml:"corrupt_fields"`
 }
 
-// LoadProfiles scans the configuration directory and processes all profiles into memory
 func LoadProfiles(dir string) ([]*EntityProfile, error) {
 	files, err := filepath.Glob(filepath.Join(dir, "*.yaml"))
 	if err != nil {
@@ -52,7 +51,6 @@ func LoadProfiles(dir string) ([]*EntityProfile, error) {
 			return nil, fmt.Errorf("failed to parse yaml %s: %w", file, err)
 		}
 
-		// Validation Guard: Alert immediately if fields are completely missed by the unmarshaler
 		if len(p.Fields) == 0 {
 			fmt.Printf("[WARNING] Profile %s loaded 0 fields! Check your YAML indentation.\n", file)
 		}
@@ -60,9 +58,9 @@ func LoadProfiles(dir string) ([]*EntityProfile, error) {
 		var baseFields []FieldOrder
 		var conditionalFields []FieldOrder
 
-		for fieldName, items := range p.Fields {
-			fmt.Printf("[ENGINE] Compiling pipeline rule for field: %s (variants: %d)\n", fieldName, len(items))
-			gen, isConditional, err := field.CompileStructuredRule(items)
+		for fieldName, cfg := range p.Fields {
+			fmt.Printf("[ENGINE] Compiling pipeline rule for field: %s (type: %s)\n", fieldName, cfg.Type)
+			gen, isConditional, err := field.CompileField(cfg)
 			if err != nil {
 				return nil, fmt.Errorf("error in profile %s, field %s: %w", p.Entity, fieldName, err)
 			}
@@ -75,10 +73,8 @@ func LoadProfiles(dir string) ([]*EntityProfile, error) {
 			}
 		}
 
-		// Sequence conditional routes to back of execution stack
 		p.Compiled = append(baseFields, conditionalFields...)
 		profiles = append(profiles, &p)
 	}
 	return profiles, nil
 }
-
