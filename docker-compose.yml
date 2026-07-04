@@ -26,6 +26,8 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - kafka
+    ports:
+      - "9099:9099"
     volumes:
       # Mounts your local profiles directory so you can update YAMLs without rebuilding the container!
       - ./profiles:/root/profiles

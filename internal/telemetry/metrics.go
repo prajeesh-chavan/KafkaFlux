@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
@@ -69,7 +70,7 @@ func (m *Metrics) SetEPS(entity string, eps float64) {
 	ptr.Store(int64(eps * 1000))
 }
 
-func (m *Metrics) Handler() http.Handler {
+func (m *Metrics) PrometheusHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		uptime := int64(time.Since(m.startTime).Seconds())
@@ -121,5 +122,50 @@ func (m *Metrics) Handler() http.Handler {
 		fmt.Fprintf(w, "kafkaflux_uptime_seconds %d\n", uptime)
 
 		m.mu.Unlock()
+	})
+}
+
+func (m *Metrics) StatusJSON() map[string]interface{} {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	entities := make([]string, 0, len(m.eventsTotal))
+	for e := range m.eventsTotal {
+		entities = append(entities, e)
+	}
+	sort.Strings(entities)
+
+	perEntity := make([]map[string]interface{}, 0, len(entities))
+	var totalEvents int64
+	for _, e := range entities {
+		ev := atomic.LoadInt64(m.eventsTotal[e])
+		totalEvents += ev
+		eps := float64(0)
+		if ptr, ok := m.eps[e]; ok {
+			eps = float64(ptr.Load()) / 1000
+		}
+		perEntity = append(perEntity, map[string]interface{}{
+			"entity": e,
+			"events": ev,
+			"eps":    eps,
+		})
+	}
+
+	return map[string]interface{}{
+		"uptime_seconds":   int64(time.Since(m.startTime).Seconds()),
+		"total_events":     totalEvents,
+		"events_dropped":   m.eventsDropped.Load(),
+		"delivery_failures": m.deliveryFail.Load(),
+		"marshal_errors":   m.marshalErrors.Load(),
+		"buffer_used":      m.bufferFill.Load(),
+		"buffer_capacity":  m.bufferCap.Load(),
+		"entities":         perEntity,
+	}
+}
+
+func (m *Metrics) StatusHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(m.StatusJSON())
 	})
 }

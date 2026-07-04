@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+var isTerminal = isCharDevice(os.Stdout)
+
+func isCharDevice(f *os.File) bool {
+	fi, err := f.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+}
+
 func (s *Simulator) StartDashboard(ctx context.Context, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
@@ -31,6 +38,10 @@ func (s *Simulator) StartDashboard(ctx context.Context, wg *sync.WaitGroup) {
 				chanCap := cap(s.outChan)
 				if s.metrics != nil {
 					s.metrics.SetBufferFill(chanLen, chanCap)
+				}
+
+				if !isTerminal {
+					continue
 				}
 
 				fmt.Print("\033[2J\033[1;1H")

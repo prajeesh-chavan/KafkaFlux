@@ -71,7 +71,8 @@ func Run() {
 
 func startMetricsServer(ctx context.Context, port int, m *telemetry.Metrics) {
 	mux := http.NewServeMux()
-	mux.Handle("/metrics", m.Handler())
+	mux.Handle("/", m.StatusHandler())
+	mux.Handle("/metrics", m.PrometheusHandler())
 	addr := fmt.Sprintf(":%d", port)
 	server := &http.Server{Addr: addr, Handler: mux}
 
