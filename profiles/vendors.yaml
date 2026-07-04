@@ -1,0 +1,53 @@
+entity: vendors
+topic: "telemetry.ecommerce.vendors"
+target_eps: 2
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  vendor_id:
+    type: uuid
+    publish_to: vendors
+
+  vendor_name:
+    type: company
+
+  legal_name:
+    type: company
+
+  vendor_code:
+    type: regex
+
+  primary_contact_name:
+    type: full_name
+
+  email:
+    type: email
+
+  phone:
+    type: phone
+
+  tax_registration_number:
+    type: ssn
+
+  vendor_status:
+    type: weighted
+    values:
+      ACTIVE: 80
+      INACTIVE: 15
+      SUSPENDED: 5
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp
+
+  is_deleted:
+    type: weighted
+    values:
+      "false": 98
+      "true": 2

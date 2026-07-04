@@ -1,0 +1,105 @@
+entity: order_items
+topic: "telemetry.ecommerce.order_items"
+target_eps: 100
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  order_item_id:
+    type: uuid
+    publish_to: order_items
+
+  order_id:
+    type: pool
+    pool: orders
+
+  product_variant_id:
+    type: pool
+    pool: product_variants
+
+  vendor_id:
+    type: pool
+    pool: vendors
+
+  product_name_snapshot:
+    type: product_name
+
+  sku_snapshot:
+    type: sku
+
+  quantity_ordered:
+    type: range
+    min: 1
+    max: 5
+
+  quantity_cancelled:
+    type: range
+    min: 0
+    max: 2
+
+  quantity_fulfilled:
+    type: range
+    min: 0
+    max: 5
+
+  quantity_returned:
+    type: range
+    min: 0
+    max: 2
+
+  unit_price:
+    type: normal
+    mean: 50.0
+    stddev: 20.0
+    min: 5.0
+
+  line_discount_amount:
+    type: range
+    min: 0
+    max: 20
+
+  line_tax_amount:
+    type: normal
+    mean: 5.0
+    stddev: 2.0
+    min: 0.0
+
+  line_shipping_amount:
+    type: normal
+    mean: 3.0
+    stddev: 1.0
+    min: 0.0
+
+  line_total_amount:
+    type: normal
+    mean: 150.0
+    stddev: 50.0
+    min: 0.0
+
+  currency_code:
+    type: weighted
+    values:
+      USD: 50
+      INR: 30
+      EUR: 10
+      GBP: 5
+      JPY: 5
+
+  item_status:
+    type: weighted
+    values:
+      PENDING: 20
+      CANCELLED: 5
+      PARTIALLY_FULFILLED: 10
+      FULFILLED: 55
+      PARTIALLY_RETURNED: 5
+      RETURNED: 5
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp

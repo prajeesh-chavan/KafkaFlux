@@ -12,80 +12,74 @@ fields:
     type: uuid
     publish_to: orders
 
-  order_number:
-    type: int
-
   customer_id:
     type: pool
     pool: customers
 
   sales_channel_id:
-    type: uuid
+    type: pool
+    pool: sales_channels
+
+  order_number:
+    type: int
 
   order_status:
     type: weighted
     values:
-      CREATED: 20
-      CONFIRMED: 20
-      PROCESSING: 25
-      COMPLETED: 30
-      CANCELLED: 5
+      PLACED: 15
+      CONFIRMED: 15
+      PROCESSING: 20
+      SHIPPED: 20
+      DELIVERED: 25
+      CANCELLED: 4
+      RETURNED: 1
 
-  payment_status:
-    type: weighted
-    values:
-      PENDING: 20
-      PAID: 70
-      FAILED: 10
-
-  fulfillment_status:
-    type: weighted
-    values:
-      UNFULFILLED: 30
-      FULFILLED: 70
+  order_timestamp:
+    type: past_timestamp
 
   currency_code:
     type: weighted
     values:
       USD: 50
-      INR: 50
+      INR: 30
+      EUR: 10
+      GBP: 5
+      JPY: 5
 
   subtotal_amount:
     type: float
-
-  shipping_amount:
-    type: normal
-    mean: 15.0
-    stddev: 3.5
-    min: 0.0
-
-  tax_amount:
-    type: normal
-    mean: 8.5
-    stddev: 2.0
-    min: 1.0
 
   discount_amount:
     type: range
     min: 0
     max: 25
 
-  placed_at:
-    type: timestamp
+  tax_amount:
+    type: normal
+    mean: 15.0
+    stddev: 5.0
+    min: 1.0
+
+  shipping_amount:
+    type: normal
+    mean: 12.0
+    stddev: 4.0
+    min: 0.0
+
+  total_amount:
+    type: normal
+    mean: 250.0
+    stddev: 100.0
+    min: 1.0
 
   created_at:
     type: timestamp
 
-  completed_at:
-    type: conditional
-    rules:
-      - when: order_status == COMPLETED
-        then:
-          type: timestamp
+  updated_at:
+    type: timestamp
 
-  cancelled_at:
-    type: conditional
-    rules:
-      - when: order_status == CANCELLED
-        then:
-          type: timestamp
+  is_deleted:
+    type: weighted
+    values:
+      "false": 99
+      "true": 1

@@ -1,0 +1,48 @@
+entity: sales_channels
+topic: "telemetry.ecommerce.sales_channels"
+target_eps: 1
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  channel_id:
+    type: uuid
+    publish_to: sales_channels
+
+  channel_name:
+    type: weighted
+    values:
+      "Online Store": 40
+      "Mobile App": 30
+      "Amazon Marketplace": 15
+      "Retail Store": 10
+      "Wholesale Portal": 5
+
+  channel_type:
+    type: weighted
+    values:
+      ONLINE: 45
+      PHYSICAL: 30
+      MARKETPLACE: 20
+      OTHER: 5
+
+  is_active:
+    type: weighted
+    values:
+      "false": 5
+      "true": 95
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp
+
+  is_deleted:
+    type: weighted
+    values:
+      "false": 99
+      "true": 1

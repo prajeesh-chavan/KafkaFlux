@@ -1,0 +1,59 @@
+entity: order_addresses
+topic: "telemetry.ecommerce.order_addresses"
+target_eps: 50
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  order_address_id:
+    type: uuid
+
+  order_id:
+    type: pool
+    pool: orders
+
+  customer_address_id:
+    type: pool
+    pool: customer_addresses
+
+  address_type:
+    type: weighted
+    values:
+      SHIPPING: 60
+      BILLING: 35
+      OTHER: 5
+
+  recipient_name:
+    type: full_name
+
+  recipient_phone:
+    type: phone
+
+  address_line_1:
+    type: street
+
+  address_line_2:
+    type: weighted
+    values:
+      "Apt 101": 10
+      "Suite 202": 10
+      "Unit 5B": 10
+      "": 70
+
+  locality:
+    type: city
+
+  administrative_area:
+    type: state
+
+  postal_code:
+    type: zip
+
+  country_code:
+    type: country_code
+
+  created_at:
+    type: timestamp

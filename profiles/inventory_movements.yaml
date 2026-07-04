@@ -1,0 +1,48 @@
+entity: inventory_movements
+topic: "telemetry.ecommerce.inventory_movements"
+target_eps: 40
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  movement_id:
+    type: uuid
+
+  inventory_id:
+    type: pool
+    pool: inventory
+
+  movement_type:
+    type: weighted
+    values:
+      INBOUND: 30
+      OUTBOUND: 45
+      ADJUSTMENT: 10
+      TRANSFER_IN: 8
+      TRANSFER_OUT: 7
+
+  movement_quantity:
+    type: range
+    min: 1
+    max: 100
+
+  reference_type:
+    type: weighted
+    values:
+      ORDER: 50
+      RETURN: 15
+      PURCHASE: 20
+      TRANSFER: 10
+      MANUAL: 5
+
+  reference_id:
+    type: uuid
+
+  movement_timestamp:
+    type: past_timestamp
+
+  created_at:
+    type: timestamp

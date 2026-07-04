@@ -1,6 +1,6 @@
 entity: product_variants
 topic: "telemetry.ecommerce.product_variants"
-target_eps: 15
+target_eps: 30
 dynamic_scaling: false
 
 chaos:
@@ -8,7 +8,7 @@ chaos:
   corrupt_fields: {}
 
 fields:
-  product_variant_id:
+  variant_id:
     type: uuid
     publish_to: product_variants
 
@@ -17,29 +17,47 @@ fields:
     pool: products
 
   sku:
-    type: int
+    type: sku
 
   barcode:
     type: uuid
 
-  variant_name:
+  color:
     type: weighted
     values:
-      "Small / Black": 25
-      "Medium / White": 50
-      "Large / Silver": 25
+      "Black": 25
+      "White": 20
+      "Red": 10
+      "Blue": 15
+      "Green": 10
+      "Silver": 10
+      "Gold": 5
+      "Rose Gold": 5
 
-  weight:
+  size:
+    type: weighted
+    values:
+      "XS": 10
+      "S": 20
+      "M": 30
+      "L": 25
+      "XL": 10
+      "XXL": 5
+
+  unit_price:
     type: normal
-    mean: 1.5
-    stddev: 0.4
-    min: 0.1
-
-  is_active:
-    type: weighted
-    values:
-      "true": 95
-      "false": 5
+    mean: 50.0
+    stddev: 20.0
+    min: 5.0
 
   created_at:
     type: timestamp
+
+  updated_at:
+    type: timestamp
+
+  is_deleted:
+    type: weighted
+    values:
+      "false": 95
+      "true": 5

@@ -1,0 +1,40 @@
+entity: customer_addresses
+topic: "telemetry.ecommerce.customer_addresses"
+target_eps: 10
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  customer_address_id:
+    type: uuid
+    publish_to: customer_addresses
+
+  customer_id:
+    type: pool
+    pool: customers
+
+  address_id:
+    type: pool
+    pool: addresses
+
+  address_type:
+    type: weighted
+    values:
+      SHIPPING: 60
+      BILLING: 35
+      OTHER: 5
+
+  is_default:
+    type: weighted
+    values:
+      "false": 80
+      "true": 20
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp

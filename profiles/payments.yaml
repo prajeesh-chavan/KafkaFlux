@@ -1,7 +1,7 @@
 entity: payments
 topic: "telemetry.ecommerce.payments"
 target_eps: 45
-dynamic_scaling: true
+dynamic_scaling: false
 
 chaos:
   drop_percentage: 0.0
@@ -10,38 +10,80 @@ chaos:
 fields:
   payment_id:
     type: uuid
+    publish_to: payments
 
   order_id:
     type: pool
     pool: orders
 
-  customer_id:
-    type: pool
-    pool: customers
-
   payment_provider:
     type: weighted
     values:
-      STRIPE: 50
-      RAZORPAY: 40
-      PAYPAL: 10
+      "Stripe": 30
+      "Razorpay": 25
+      "PayPal": 20
+      "Paytm": 15
+      "Square": 10
+
+  provider_payment_reference:
+    type: uuid
 
   payment_method:
     type: weighted
     values:
-      CARD: 45
-      UPI: 45
+      CARD: 35
+      UPI: 25
+      NET_BANKING: 15
       WALLET: 10
+      BANK_TRANSFER: 10
+      CASH_ON_DELIVERY: 5
 
   payment_status:
     type: weighted
     values:
-      CAPTURED: 85
-      PENDING: 5
+      PENDING: 10
+      AUTHORIZED: 15
+      CAPTURED: 60
       FAILED: 10
+      CANCELLED: 5
 
   amount:
     type: float
 
+  currency_code:
+    type: weighted
+    values:
+      USD: 50
+      INR: 30
+      EUR: 10
+      GBP: 5
+      JPY: 5
+
+  failure_code:
+    type: conditional
+    rules:
+      - when: payment_status == FAILED
+        then:
+          type: weighted
+          values:
+            "INSUFFICIENT_FUNDS": 35
+            "CARD_DECLINED": 25
+            "FRAUD_DETECTED": 15
+            "PROCESSING_ERROR": 15
+            "EXPIRED_CARD": 10
+
+  failure_reason:
+    type: conditional
+    rules:
+      - when: payment_status == FAILED
+        then:
+          type: sentence
+
   processed_at:
+    type: past_timestamp
+
+  created_at:
+    type: timestamp
+
+  updated_at:
     type: timestamp

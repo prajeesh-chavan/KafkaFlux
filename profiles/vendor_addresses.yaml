@@ -1,0 +1,40 @@
+entity: vendor_addresses
+topic: "telemetry.ecommerce.vendor_addresses"
+target_eps: 2
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  vendor_address_id:
+    type: uuid
+
+  vendor_id:
+    type: pool
+    pool: vendors
+
+  address_id:
+    type: pool
+    pool: addresses
+
+  address_type:
+    type: weighted
+    values:
+      REGISTERED: 40
+      PICKUP: 25
+      BILLING: 25
+      RETURN: 10
+
+  is_default:
+    type: weighted
+    values:
+      "false": 70
+      "true": 30
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp

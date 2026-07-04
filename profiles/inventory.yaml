@@ -10,25 +10,35 @@ chaos:
 fields:
   inventory_id:
     type: uuid
+    publish_to: inventory
 
-  product_variant_id:
+  warehouse_id:
+    type: pool
+    pool: warehouses
+
+  variant_id:
     type: pool
     pool: product_variants
 
-  warehouse_id:
-    type: uuid
-
-  available_quantity:
+  quantity_on_hand:
     type: poisson
-    lambda: 150.0
+    lambda: 50.0
 
-  reserved_quantity:
+  quantity_reserved:
     type: range
     min: 0
-    max: 15
+    max: 20
 
-  safety_stock_quantity:
-    value: 20
+  reorder_level:
+    type: range
+    min: 10
+    max: 50
+
+  last_stock_update_at:
+    type: past_timestamp
+
+  created_at:
+    type: timestamp
 
   updated_at:
     type: timestamp

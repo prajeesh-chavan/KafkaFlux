@@ -1,0 +1,47 @@
+entity: carriers
+topic: "telemetry.ecommerce.carriers"
+target_eps: 1
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  carrier_id:
+    type: uuid
+    publish_to: carriers
+
+  carrier_name:
+    type: company
+
+  carrier_code:
+    type: weighted
+    values:
+      "FEDEX": 25
+      "UPS": 25
+      "DHL": 20
+      "USPS": 15
+      "BLUEDART": 10
+      "DELHIVERY": 5
+
+  tracking_url_template:
+    type: url
+
+  is_active:
+    type: weighted
+    values:
+      "false": 5
+      "true": 95
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp
+
+  is_deleted:
+    type: weighted
+    values:
+      "false": 99
+      "true": 1

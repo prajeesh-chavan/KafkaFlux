@@ -1,0 +1,42 @@
+entity: addresses
+topic: "telemetry.ecommerce.addresses"
+target_eps: 10
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  address_id:
+    type: uuid
+    publish_to: addresses
+
+  address_line_1:
+    type: street
+
+  address_line_2:
+    type: weighted
+    values:
+      "Apt 101": 10
+      "Suite 202": 10
+      "Unit 5B": 10
+      "": 70
+
+  locality:
+    type: city
+
+  administrative_area:
+    type: state
+
+  postal_code:
+    type: zip
+
+  country_code:
+    type: country_code
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp

@@ -1,5 +1,5 @@
-entity: brands
-topic: "telemetry.ecommerce.brands"
+entity: brand
+topic: "telemetry.ecommerce.brand"
 target_eps: 1
 dynamic_scaling: false
 
@@ -13,19 +13,25 @@ fields:
     publish_to: brands
 
   brand_name:
-    value: company_name
+    type: company
 
   description:
-    value: sentence
+    type: sentence
 
   is_active:
     type: weighted
     values:
-      "true": 98
-      "false": 2
+      "false": 5
+      "true": 95
 
   created_at:
     type: timestamp
 
   updated_at:
     type: timestamp
+
+  is_deleted:
+    type: weighted
+    values:
+      "false": 99
+      "true": 1

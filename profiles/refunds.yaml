@@ -1,0 +1,62 @@
+entity: refunds
+topic: "telemetry.ecommerce.refunds"
+target_eps: 5
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  refund_id:
+    type: uuid
+
+  order_id:
+    type: pool
+    pool: orders
+
+  payment_id:
+    type: pool
+    pool: payments
+
+  refund_reference:
+    type: uuid
+
+  refund_status:
+    type: weighted
+    values:
+      INITIATED: 20
+      PROCESSING: 15
+      COMPLETED: 55
+      REJECTED: 10
+
+  refund_reason:
+    type: weighted
+    values:
+      "Product damaged": 25
+      "Wrong item delivered": 20
+      "Customer changed mind": 20
+      "Item not as described": 15
+      "Duplicate payment": 10
+      "Quality issue": 10
+
+  refund_amount:
+    type: float
+
+  currency_code:
+    type: weighted
+    values:
+      USD: 50
+      INR: 30
+      EUR: 10
+      GBP: 5
+      JPY: 5
+
+  processed_at:
+    type: past_timestamp
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp

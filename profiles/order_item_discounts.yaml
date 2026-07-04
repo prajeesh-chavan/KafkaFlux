@@ -1,0 +1,48 @@
+entity: order_item_discounts
+topic: "telemetry.ecommerce.order_item_discounts"
+target_eps: 30
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  order_item_discount_id:
+    type: uuid
+
+  order_item_id:
+    type: pool
+    pool: order_items
+
+  promotion_id:
+    type: pool
+    pool: promotions
+
+  discount_type:
+    type: weighted
+    values:
+      PERCENTAGE: 40
+      FIXED_AMOUNT: 35
+      BUY_X_GET_Y: 15
+      FREE_SHIPPING: 10
+
+  discount_name:
+    type: weighted
+    values:
+      "Summer Sale": 20
+      "Welcome Offer": 20
+      "Festive Discount": 15
+      "Clearance Sale": 15
+      "New User Coupon": 10
+      "Flash Deal": 10
+      "Loyalty Reward": 10
+
+  discount_amount:
+    type: normal
+    mean: 10.0
+    stddev: 5.0
+    min: 1.0
+
+  created_at:
+    type: timestamp

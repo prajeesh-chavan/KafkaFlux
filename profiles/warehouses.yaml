@@ -1,5 +1,5 @@
-entity: categories
-topic: "telemetry.ecommerce.categories"
+entity: warehouses
+topic: "telemetry.ecommerce.warehouses"
 target_eps: 1
 dynamic_scaling: false
 
@@ -8,25 +8,26 @@ chaos:
   corrupt_fields: {}
 
 fields:
-  category_id:
+  warehouse_id:
     type: uuid
-    publish_to: categories
+    publish_to: warehouses
 
-  category_name:
-    type: word
+  warehouse_code:
+    type: sku
 
-  parent_category_id:
+  warehouse_name:
+    type: company
+
+  address_id:
     type: pool
-    pool: categories
+    pool: addresses
 
-  description:
-    type: sentence
-
-  is_active:
+  warehouse_status:
     type: weighted
     values:
-      "false": 5
-      "true": 95
+      ACTIVE: 85
+      INACTIVE: 10
+      CLOSED: 5
 
   created_at:
     type: timestamp

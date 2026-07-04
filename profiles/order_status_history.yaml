@@ -1,0 +1,44 @@
+entity: order_status_history
+topic: "telemetry.ecommerce.order_status_history"
+target_eps: 100
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  order_status_history_id:
+    type: uuid
+
+  order_id:
+    type: pool
+    pool: orders
+
+  status:
+    type: weighted
+    values:
+      PLACED: 25
+      CONFIRMED: 20
+      PROCESSING: 20
+      SHIPPED: 15
+      DELIVERED: 15
+      CANCELLED: 3
+      RETURNED: 2
+
+  status_timestamp:
+    type: past_timestamp
+
+  status_reason:
+    type: sentence
+
+  changed_by:
+    type: weighted
+    values:
+      SYSTEM: 35
+      CUSTOMER: 30
+      CUSTOMER_SERVICE: 20
+      WAREHOUSE: 15
+
+  created_at:
+    type: timestamp

@@ -1,6 +1,6 @@
 entity: products
 topic: "telemetry.ecommerce.products"
-target_eps: 5
+target_eps: 20
 dynamic_scaling: false
 
 chaos:
@@ -12,30 +12,39 @@ fields:
     type: uuid
     publish_to: products
 
+  vendor_id:
+    type: pool
+    pool: vendors
+
   brand_id:
-    type: uuid
-    publish_to: brands
+    type: pool
+    pool: brands
 
   category_id:
-    type: uuid
-    publish_to: categories
+    type: pool
+    pool: categories
 
   product_name:
-    type: weighted
-    values:
-      "Premium Alphanumeric Gadget": 40
-      "Eco Eco-Friendly Essentials": 30
-      "Hyper Sport Performance Pack": 30
+    type: product_name
+
+  description:
+    type: paragraph
 
   product_status:
     type: weighted
     values:
-      ACTIVE: 90
-      DRAFT: 7
-      DISCONTINUED: 3
+      ACTIVE: 80
+      DISCONTINUED: 10
+      OUT_OF_CATALOG: 10
 
   created_at:
     type: timestamp
 
   updated_at:
     type: timestamp
+
+  is_deleted:
+    type: weighted
+    values:
+      "false": 95
+      "true": 5
