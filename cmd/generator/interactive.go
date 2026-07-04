@@ -50,18 +50,25 @@ func runInteractive() {
 		}
 
 		fmt.Println("Select Generator Type:")
-		fmt.Println("  [1] Primitives (uuid, int, float, timestamp, first_name, last_name, name, email, phone)")
-		fmt.Println("  [2] Distribution (range, normal, poisson)")
-		fmt.Println("  [3] Reference Pool (pool)")
-		fmt.Println("  [4] Weighted Enum")
-		fmt.Println("  [5] Conditional Expression")
-		fmt.Println("  [6] Literal Value")
+		fmt.Println("  [1] Primitives (uuid, int, float, timestamp, boolean, date)")
+		fmt.Println("  [2] Person (first_name, last_name, name, full_name, email, phone, username, password)")
+		fmt.Println("  [3] Organization (company, company_email, job_title)")
+		fmt.Println("  [4] Address (street, city, state, zip, country, country_code, full_address)")
+		fmt.Println("  [5] Web (ip, ipv6, mac, user_agent, url, http_method, http_status)")
+		fmt.Println("  [6] Finance (credit_card, currency, sku, product_name)")
+		fmt.Println("  [7] Text (word, sentence, paragraph)")
+		fmt.Println("  [8] Geo (latitude, longitude, timezone)")
+		fmt.Println("  [9] Distribution (range, normal, poisson)")
+		fmt.Println("  [10] Reference Pool (pool)")
+		fmt.Println("  [11] Weighted Enum")
+		fmt.Println("  [12] Conditional Expression")
+		fmt.Println("  [13] Literal Value")
 
-		choice := askInput(reader, "Choose option [1-6]: ")
+		choice := askInput(reader, "Choose option [1-13]: ")
 
 		switch choice {
 		case "1":
-			genType := askInput(reader, "  Enter type (uuid, int, float, timestamp, first_name, last_name, name, email, phone): ")
+			genType := askInput(reader, "  Enter type (uuid, int, float, timestamp, boolean, date): ")
 			cfg := field.FieldConfig{Type: genType}
 			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
 			if pub != "" {
@@ -70,6 +77,69 @@ func runInteractive() {
 			profile.Fields[fieldName] = cfg
 
 		case "2":
+			genType := askInput(reader, "  Enter type (first_name, last_name, name, full_name, email, phone, username, password): ")
+			cfg := field.FieldConfig{Type: genType}
+			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			if pub != "" {
+				cfg.PublishTo = pub
+			}
+			profile.Fields[fieldName] = cfg
+
+		case "3":
+			genType := askInput(reader, "  Enter type (company, company_email, job_title): ")
+			cfg := field.FieldConfig{Type: genType}
+			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			if pub != "" {
+				cfg.PublishTo = pub
+			}
+			profile.Fields[fieldName] = cfg
+
+		case "4":
+			genType := askInput(reader, "  Enter type (street, city, state, zip, country, country_code, full_address): ")
+			cfg := field.FieldConfig{Type: genType}
+			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			if pub != "" {
+				cfg.PublishTo = pub
+			}
+			profile.Fields[fieldName] = cfg
+
+		case "5":
+			genType := askInput(reader, "  Enter type (ip, ipv6, mac, user_agent, url, http_method, http_status, mime_type): ")
+			cfg := field.FieldConfig{Type: genType}
+			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			if pub != "" {
+				cfg.PublishTo = pub
+			}
+			profile.Fields[fieldName] = cfg
+
+		case "6":
+			genType := askInput(reader, "  Enter type (credit_card, currency, sku, product_name): ")
+			cfg := field.FieldConfig{Type: genType}
+			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			if pub != "" {
+				cfg.PublishTo = pub
+			}
+			profile.Fields[fieldName] = cfg
+
+		case "7":
+			genType := askInput(reader, "  Enter type (word, sentence, paragraph): ")
+			cfg := field.FieldConfig{Type: genType}
+			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			if pub != "" {
+				cfg.PublishTo = pub
+			}
+			profile.Fields[fieldName] = cfg
+
+		case "8":
+			genType := askInput(reader, "  Enter type (latitude, longitude, timezone): ")
+			cfg := field.FieldConfig{Type: genType}
+			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			if pub != "" {
+				cfg.PublishTo = pub
+			}
+			profile.Fields[fieldName] = cfg
+
+		case "9":
 			distType := askInput(reader, "  Enter distribution (range, normal, poisson): ")
 			switch distType {
 			case "range":
@@ -96,11 +166,11 @@ func runInteractive() {
 				profile.Fields[fieldName] = field.FieldConfig{Type: "poisson", Lambda: &lambda}
 			}
 
-		case "3":
+		case "10":
 			poolName := askInput(reader, "  Pool name: ")
 			profile.Fields[fieldName] = field.FieldConfig{Type: "pool", PoolName: poolName}
 
-		case "4":
+		case "11":
 			values := make(map[string]float64)
 			fmt.Println("  Enter value/weight pairs (blank value to finish):")
 			for {
@@ -114,7 +184,7 @@ func runInteractive() {
 			}
 			profile.Fields[fieldName] = field.FieldConfig{Type: "weighted", Values: values}
 
-		case "5":
+		case "12":
 			fmt.Println("  Enter conditional rules (blank when to finish):")
 			var rules []field.ConditionalRule
 			for {
@@ -135,7 +205,7 @@ func runInteractive() {
 			}
 			profile.Fields[fieldName] = cfg
 
-		default:
+		case "13":
 			literal := askInput(reader, "  Literal value: ")
 			profile.Fields[fieldName] = field.FieldConfig{Value: literal}
 		}
