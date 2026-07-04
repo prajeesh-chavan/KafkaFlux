@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type NameBuilder struct {
@@ -115,5 +116,14 @@ func genPhone() FieldGen {
 			builder.WriteString(strconv.Itoa(r.Intn(10)))
 		}
 		return builder.String()
+	}
+}
+
+func genBirthDate() FieldGen {
+	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
+		minDays := 18 * 365
+		maxDays := 80 * 365
+		offset := time.Duration(r.Intn(maxDays-minDays)+minDays) * 24 * time.Hour
+		return time.Now().Add(-offset).Format("2006-01-02")
 	}
 }

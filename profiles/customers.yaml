@@ -1,6 +1,6 @@
 entity: customers
 topic: "telemetry.ecommerce.customers"
-target_eps: 1
+target_eps: 10
 dynamic_scaling: false
 
 chaos:
@@ -24,15 +24,24 @@ fields:
   phone:
     type: phone
 
+  date_of_birth:
+    type: birth_date
+
   customer_status:
     type: weighted
     values:
-      ACTIVE: 85
-      INACTIVE: 10
+      ACTIVE: 80
+      INACTIVE: 15
       BLOCKED: 5
 
+  customer_type:
+    type: weighted
+    values:
+      INDIVIDUAL: 70
+      BUSINESS: 30
+
   registered_at:
-    type: timestamp
+    type: past_timestamp
 
   created_at:
     type: timestamp

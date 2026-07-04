@@ -40,8 +40,9 @@ WORKDIR /root/
 # Copy the pre-compiled binary from the builder stage
 COPY --from=builder /app/kafka-producer .
 
-# CRITICAL: Copy the profiles directory so the application can find the YAML configurations
+# CRITICAL: Copy configuration and data directories for runtime
 COPY --from=builder /app/profiles ./profiles
+COPY --from=builder /app/data ./data
 
 # Execute the binary
 ENTRYPOINT ["./kafka-producer"]

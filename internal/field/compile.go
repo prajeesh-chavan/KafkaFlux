@@ -110,6 +110,8 @@ func CompileField(cfg FieldConfig) (FieldGen, bool, error) {
 		return genFutureTimestamp(), false, nil
 	case "date":
 		return genDate(), false, nil
+	case "birth_date":
+		return genBirthDate(), false, nil
 	case "regex":
 		return genRegex(), false, nil
 	case "range":
