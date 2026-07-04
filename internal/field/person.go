@@ -23,6 +23,9 @@ var defaultLastNames = []string{
 }
 
 func getOrCreateName(r *rand.Rand, state map[string]interface{}) NameBuilder {
+	if state == nil {
+		state = make(map[string]interface{})
+	}
 	if name, ok := state["__name"].(NameBuilder); ok {
 		return name
 	}

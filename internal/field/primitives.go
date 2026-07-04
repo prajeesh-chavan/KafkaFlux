@@ -10,7 +10,7 @@ import (
 func genUUID() FieldGen {
 	return func(r *rand.Rand, _ map[string]interface{}) interface{} {
 		return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
-			r.Uint32(), r.Uint32()&0xffff, r.Uint32()&0xffff, r.Uint32()&0xffff, r.Uint64())
+			r.Uint32(), r.Uint32()&0xffff, r.Uint32()&0xffff, r.Uint32()&0xffff, r.Uint32()&0xffffffff)
 	}
 }
 
