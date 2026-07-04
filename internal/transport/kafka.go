@@ -3,16 +3,18 @@
 import (
 	"context"
 	"fmt"
-	"go-kafka-simulator/internal/engine"
 	"sync"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+
+	"go-kafka-simulator/internal/engine"
+	"go-kafka-simulator/internal/pool"
 )
 
 type KafkaPublisher struct {
 	producer *kafka.Producer
 	inChan   chan *engine.DataEvent
-	sim      *engine.Simulator
+	bufPool  pool.BufferPool
 }
 
 func NewKafkaPublisher(brokers string, inChan chan *engine.DataEvent) (*KafkaPublisher, error) {
@@ -33,12 +35,11 @@ func NewKafkaPublisher(brokers string, inChan chan *engine.DataEvent) (*KafkaPub
 	}, nil
 }
 
-func (kp *KafkaPublisher) SetSimulator(sim *engine.Simulator) {
-	kp.sim = sim
+func (kp *KafkaPublisher) SetBufferPool(p pool.BufferPool) {
+	kp.bufPool = p
 }
 
 func (kp *KafkaPublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallelWorkers int) {
-	// Background Delivery Report Loop Listener
 	go func() {
 		for e := range kp.producer.Events() {
 			switch ev := e.(type) {
@@ -46,18 +47,15 @@ func (kp *KafkaPublisher) Start(ctx context.Context, wg *sync.WaitGroup, paralle
 				if ev.TopicPartition.Error != nil {
 					fmt.Printf("Delivery failed: %v\n", ev.TopicPartition.Error)
 				}
-				
-				// Safely extract the original pristine buffer using Opaque metadata tracking
-				if kp.sim != nil && ev.Opaque != nil {
-					if originalBuf, ok := ev.Opaque.([]byte); ok {
-						kp.sim.ReleaseBuffer(originalBuf)
+				if kp.bufPool != nil && ev.Opaque != nil {
+					if buf, ok := ev.Opaque.([]byte); ok {
+						kp.bufPool.Put(buf)
 					}
 				}
 			}
 		}
 	}()
 
-	// Parallel Network I/O Pipeline Workers
 	for i := 0; i < parallelWorkers; i++ {
 		wg.Add(1)
 		go func() {
@@ -70,12 +68,10 @@ func (kp *KafkaPublisher) Start(ctx context.Context, wg *sync.WaitGroup, paralle
 					if !ok {
 						return
 					}
-					
-					// Attach the original slice address to the Opaque interface pointer field
 					_ = kp.producer.Produce(&kafka.Message{
 						TopicPartition: kafka.TopicPartition{Topic: &event.Topic, Partition: kafka.PartitionAny},
 						Value:          event.Data,
-						Opaque:         event.Data, // Pass the reference forward through the CGO bounds safely
+						Opaque:         event.Data,
 					}, nil)
 				}
 			}

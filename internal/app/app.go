@@ -10,6 +10,7 @@ import (
 
 	"go-kafka-simulator/internal/config"
 	"go-kafka-simulator/internal/engine"
+	"go-kafka-simulator/internal/pool"
 	"go-kafka-simulator/internal/transport"
 )
 
@@ -27,13 +28,14 @@ func Run() {
 	}
 
 	eventChannel := make(chan *engine.DataEvent, 100000)
+	bufPool := pool.NewSyncPool()
 
 	var publisher transport.DataPublisher
 	buildPublisher(cfg, eventChannel, &publisher)
+	publisher.SetBufferPool(bufPool)
 	defer publisher.Close()
 
-	sim := engine.NewSimulator(profiles, eventChannel)
-	publisher.SetSimulator(sim)
+	sim := engine.NewSimulator(profiles, eventChannel, bufPool)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup

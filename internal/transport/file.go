@@ -11,20 +11,20 @@ import (
 	"sync"
 
 	"go-kafka-simulator/internal/engine"
+	"go-kafka-simulator/internal/pool"
 )
 
 type FilePublisher struct {
-	inChan       chan *engine.DataEvent
-	sim          *engine.Simulator
-	format       string // "json" or "csv"
-	outputDir    string // Changed from outputPath to outputDir
-	
-	// Track file handles, writers, and headers per topic dynamically
-	files         map[string]*os.File
-	csvWriters    map[string]*csv.Writer
-	orderedKeys   map[string][]string
-	headersReady  map[string]bool
-	mu            sync.Mutex 
+	inChan    chan *engine.DataEvent
+	bufPool   pool.BufferPool
+	format    string
+	outputDir string
+
+	files        map[string]*os.File
+	csvWriters   map[string]*csv.Writer
+	orderedKeys  map[string][]string
+	headersReady map[string]bool
+	mu           sync.Mutex
 }
 
 func NewFilePublisher(format string, outputDir string, inChan chan *engine.DataEvent) *FilePublisher {
@@ -39,8 +39,8 @@ func NewFilePublisher(format string, outputDir string, inChan chan *engine.DataE
 	}
 }
 
-func (fp *FilePublisher) SetSimulator(sim *engine.Simulator) {
-	fp.sim = sim
+func (fp *FilePublisher) SetBufferPool(p pool.BufferPool) {
+	fp.bufPool = p
 }
 
 func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallelWorkers int) {
@@ -48,7 +48,6 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 	go func() {
 		defer wg.Done()
 
-		// Ensure baseline output directory exists safely
 		if err := os.MkdirAll(fp.outputDir, 0755); err != nil {
 			fmt.Printf("File Engine Error: Failed to create output directory %s: %v\n", fp.outputDir, err)
 			return
@@ -73,7 +72,6 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 					topic = "unknown_topic"
 				}
 
-				// Thread-safely get or create the specific file handle for this topic
 				fp.mu.Lock()
 				file, exists := fp.files[topic]
 				if !exists {
@@ -93,7 +91,6 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 				}
 				fp.mu.Unlock()
 
-				// Write processing block
 				if fp.format == "json" {
 					_, _ = file.Write(event.Data)
 					_, _ = file.WriteString("\n")
@@ -103,7 +100,6 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 						writer := fp.csvWriters[topic]
 
 						fp.mu.Lock()
-						// Initialize specific structured headers for this file topic
 						if !fp.headersReady[topic] {
 							var keys []string
 							for k := range payload {
@@ -111,12 +107,11 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 							}
 							sort.Strings(keys)
 							fp.orderedKeys[topic] = keys
-							
+
 							_ = writer.Write(keys)
 							fp.headersReady[topic] = true
 						}
 
-						// Iterate strictly using this topic's key sequence mapping layout
 						var row []string
 						for _, key := range fp.orderedKeys[topic] {
 							val, exists := payload[key]
@@ -133,8 +128,8 @@ func (fp *FilePublisher) Start(ctx context.Context, wg *sync.WaitGroup, parallel
 					}
 				}
 
-				if fp.sim != nil {
-					fp.sim.ReleaseBuffer(event.Data)
+				if fp.bufPool != nil {
+					fp.bufPool.Put(event.Data)
 				}
 			}
 		}
@@ -145,7 +140,6 @@ func (fp *FilePublisher) Close() {
 	fp.mu.Lock()
 	defer fp.mu.Unlock()
 
-	// Flush and close every open file handle smoothly on exit shutdown signals
 	for topic, writer := range fp.csvWriters {
 		writer.Flush()
 		_ = topic

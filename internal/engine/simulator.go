@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"go-kafka-simulator/internal/config"
+	"go-kafka-simulator/internal/pool"
 )
 
 type DataEvent struct {
@@ -23,14 +24,14 @@ type DataEvent struct {
 type Simulator struct {
 	profiles      []*config.EntityProfile
 	outChan       chan *DataEvent
-	bytePool      *sync.Pool
+	bufPool       pool.BufferPool
 	Registry      *StateRegistry
 	StartTime     time.Time
 	EventCounters map[string]*uint64 
 	CurrentEPS    map[string]*uint64 
 }
 
-func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent) *Simulator {
+func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent, bufPool pool.BufferPool) *Simulator {
 	counters := make(map[string]*uint64)
 	epsTracker := make(map[string]*uint64)
 	
@@ -48,11 +49,7 @@ func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent) *Si
 		StartTime:     time.Now(),
 		EventCounters: counters,
 		CurrentEPS:    epsTracker,
-		bytePool: &sync.Pool{
-			New: func() interface{} {
-				return make([]byte, 0, 1024)
-			},
-		},
+		bufPool:       bufPool,
 	}
 }
 
@@ -75,9 +72,7 @@ func getTrafficScale(startTime time.Time) float64 {
 	return scale
 }
 
-func (s *Simulator) ReleaseBuffer(buf []byte) {
-	s.bytePool.Put(buf)
-}
+
 
 func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *config.EntityProfile) {
 	defer wg.Done()
@@ -123,7 +118,7 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 
 			loopStart := time.Now()
 
-			buf := s.bytePool.Get().([]byte)
+			buf := s.bufPool.Get()
 			buf = buf[:0]
 
 			payload := make(map[string]interface{})
@@ -164,7 +159,7 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 				atomic.AddUint64(s.EventCounters[prof.Entity], 1)
 				atomic.StoreUint64(s.CurrentEPS[prof.Entity], uint64(currentEPS))
 			} else {
-				s.bytePool.Put(buf)
+				s.bufPool.Put(buf)
 			}
 
 			elapsed := time.Since(loopStart)
