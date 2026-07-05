@@ -90,6 +90,8 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 			}
 
 			delete(payload, "__registry")
+			delete(payload, "__data")
+			delete(payload, "__name")
 
 			data, err := json.Marshal(payload)
 			if err == nil {
