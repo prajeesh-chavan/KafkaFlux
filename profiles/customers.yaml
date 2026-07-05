@@ -40,6 +40,18 @@ fields:
       INDIVIDUAL: 70
       BUSINESS: 30
 
+  marketing_opt_in:
+    type: weighted
+    values:
+      "false": 30
+      "true": 70
+
+  sms_opt_in:
+    type: weighted
+    values:
+      "false": 50
+      "true": 50
+
   registered_at:
     type: past_timestamp
 

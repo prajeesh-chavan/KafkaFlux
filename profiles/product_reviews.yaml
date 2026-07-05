@@ -1,0 +1,63 @@
+entity: product_reviews
+topic: "telemetry.ecommerce.product_reviews"
+target_eps: 15
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  review_id:
+    type: uuid
+
+  product_id:
+    type: pool
+    pool: products
+
+  customer_id:
+    type: pool
+    pool: customers
+
+  order_id:
+    type: pool
+    pool: orders
+
+  rating:
+    type: weighted
+    values:
+      "1": 5
+      "2": 10
+      "3": 20
+      "4": 35
+      "5": 30
+
+  review_title:
+    type: sentence
+
+  review_body:
+    type: paragraph
+
+  is_verified_purchase:
+    type: weighted
+    values:
+      "false": 20
+      "true": 80
+
+  is_approved:
+    type: weighted
+    values:
+      "false": 5
+      "true": 95
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp
+
+  is_deleted:
+    type: weighted
+    values:
+      "false": 98
+      "true": 2

@@ -1,0 +1,55 @@
+entity: customer_events
+topic: "telemetry.ecommerce.customer_events"
+target_eps: 200
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  event_id:
+    type: uuid
+
+  customer_id:
+    type: pool
+    pool: customers
+
+  session_id:
+    type: uuid
+
+  event_type:
+    type: weighted
+    values:
+      PAGE_VIEW: 30
+      SEARCH: 15
+      ADD_TO_CART: 10
+      REMOVE_FROM_CART: 5
+      VIEW_PRODUCT: 15
+      BEGIN_CHECKOUT: 5
+      PLACE_ORDER: 3
+      LOGIN: 12
+      LOGOUT: 5
+
+  event_timestamp:
+    type: timestamp
+
+  page_url:
+    type: url
+
+  referrer_url:
+    type: url
+
+  product_id:
+    type: pool
+    pool: products
+
+  variant_id:
+    type: pool
+    pool: product_variants
+
+  event_metadata:
+    type: paragraph
+
+  created_at:
+    type: timestamp

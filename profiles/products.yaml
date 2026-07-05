@@ -37,6 +37,14 @@ fields:
       DISCONTINUED: 10
       OUT_OF_CATALOG: 10
 
+  tax_class:
+    type: weighted
+    values:
+      "STANDARD": 60
+      "REDUCED": 25
+      "ZERO": 10
+      "EXEMPT": 5
+
   created_at:
     type: timestamp
 

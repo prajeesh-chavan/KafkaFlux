@@ -1,0 +1,59 @@
+entity: returns
+topic: "telemetry.ecommerce.returns"
+target_eps: 5
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  return_id:
+    type: uuid
+    publish_to: returns
+
+  order_id:
+    type: pool
+    pool: orders
+
+  customer_id:
+    type: pool
+    pool: customers
+
+  return_number:
+    type: int
+
+  return_reason:
+    type: weighted
+    values:
+      "Product damaged": 25
+      "Wrong item delivered": 20
+      "Customer changed mind": 15
+      "Item not as described": 15
+      "Size or fit issue": 15
+      "Quality issue": 10
+
+  return_status:
+    type: weighted
+    values:
+      REQUESTED: 25
+      APPROVED: 20
+      REJECTED: 10
+      RECEIVED: 25
+      REFUNDED: 15
+      CLOSED: 5
+
+  return_timestamp:
+    type: past_timestamp
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp
+
+  is_deleted:
+    type: weighted
+    values:
+      "false": 95
+      "true": 5

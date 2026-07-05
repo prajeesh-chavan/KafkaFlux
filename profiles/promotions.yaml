@@ -1,0 +1,111 @@
+entity: promotions
+topic: "telemetry.ecommerce.promotions"
+target_eps: 2
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  promotion_id:
+    type: uuid
+    publish_to: promotions
+
+  promotion_name:
+    type: weighted
+    values:
+      "Summer Sale 2026": 15
+      "Festive Bonus": 15
+      "New Year Offer": 15
+      "Weekend Flash": 10
+      "Free Shipping Day": 10
+      "Clearance Blowout": 10
+      "Buy 2 Get 1 Free": 10
+      "Welcome Discount": 10
+      "Loyalty Reward": 5
+
+  promotion_code:
+    type: regex
+
+  promotion_type:
+    type: weighted
+    values:
+      PERCENTAGE: 40
+      FIXED_AMOUNT: 30
+      BUY_X_GET_Y: 20
+      FREE_SHIPPING: 10
+
+  discount_percentage:
+    type: conditional
+    rules:
+      - when: promotion_type == PERCENTAGE
+        then:
+          type: range
+          min: 5
+          max: 50
+
+  discount_amount:
+    type: conditional
+    rules:
+      - when: promotion_type == FIXED_AMOUNT
+        then:
+          type: normal
+          mean: 25.0
+          stddev: 10.0
+          min: 5.0
+
+  minimum_purchase_amount:
+    type: float
+
+  maximum_discount_cap:
+    type: normal
+    mean: 100.0
+    stddev: 30.0
+    min: 10.0
+
+  applicable_to:
+    type: weighted
+    values:
+      ALL: 20
+      CATEGORY: 25
+      BRAND: 20
+      PRODUCT: 25
+      VARIANT: 10
+
+  applicable_entity_id:
+    type: uuid
+
+  usage_limit:
+    type: range
+    min: 100
+    max: 10000
+
+  usage_count_per_customer:
+    type: range
+    min: 1
+    max: 5
+
+  valid_from:
+    type: past_timestamp
+
+  valid_until:
+    type: future_timestamp
+
+  is_active:
+    type: weighted
+    values:
+      "false": 10
+      "true": 90
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp
+
+  is_deleted:
+    type: weighted
+    values:
+      "false": 95
+      "true": 5

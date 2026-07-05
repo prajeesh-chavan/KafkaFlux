@@ -50,6 +50,21 @@ fields:
     stddev: 20.0
     min: 5.0
 
+  cost_price:
+    type: normal
+    mean: 30.0
+    stddev: 12.0
+    min: 2.0
+
+  currency_code:
+    type: weighted
+    values:
+      USD: 50
+      INR: 30
+      EUR: 10
+      GBP: 5
+      JPY: 5
+
   created_at:
     type: timestamp
 

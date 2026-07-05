@@ -34,6 +34,23 @@ fields:
       CANCELLED: 4
       RETURNED: 1
 
+  fulfillment_status:
+    type: weighted
+    values:
+      NONE: 20
+      PARTIAL: 25
+      COMPLETE: 55
+
+  payment_status:
+    type: weighted
+    values:
+      PENDING: 15
+      AUTHORIZED: 10
+      PAID: 55
+      PARTIALLY_PAID: 5
+      REFUNDED: 10
+      PARTIALLY_REFUNDED: 5
+
   order_timestamp:
     type: past_timestamp
 

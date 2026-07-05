@@ -1,0 +1,34 @@
+entity: carts
+topic: "telemetry.ecommerce.carts"
+target_eps: 30
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  cart_id:
+    type: uuid
+    publish_to: carts
+
+  customer_id:
+    type: pool
+    pool: customers
+
+  session_id:
+    type: uuid
+
+  cart_status:
+    type: weighted
+    values:
+      ACTIVE: 50
+      ABANDONED: 30
+      CONVERTED: 18
+      MERGED: 2
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp

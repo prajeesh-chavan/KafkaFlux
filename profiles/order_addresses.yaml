@@ -57,3 +57,6 @@ fields:
 
   created_at:
     type: timestamp
+
+  updated_at:
+    type: timestamp

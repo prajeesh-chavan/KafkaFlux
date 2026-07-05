@@ -34,6 +34,12 @@ fields:
     min: 10
     max: 50
 
+  unit_cost:
+    type: normal
+    mean: 25.0
+    stddev: 10.0
+    min: 1.0
+
   last_stock_update_at:
     type: past_timestamp
 

@@ -1,0 +1,74 @@
+entity: shipments
+topic: "telemetry.ecommerce.shipments"
+target_eps: 20
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  shipment_id:
+    type: uuid
+    publish_to: shipments
+
+  order_id:
+    type: pool
+    pool: orders
+
+  carrier_id:
+    type: pool
+    pool: carriers
+
+  warehouse_id:
+    type: pool
+    pool: warehouses
+
+  shipment_number:
+    type: int
+
+  tracking_number:
+    type: uuid
+
+  shipment_status:
+    type: weighted
+    values:
+      PENDING: 15
+      PICKING: 10
+      PACKED: 10
+      SHIPPED: 25
+      IN_TRANSIT: 20
+      DELIVERED: 15
+      FAILED: 3
+      RETURNED_TO_SENDER: 2
+
+  shipped_at:
+    type: past_timestamp
+
+  estimated_delivery_at:
+    type: future_timestamp
+
+  delivered_at:
+    type: conditional
+    rules:
+      - when: shipment_status == DELIVERED
+        then:
+          type: past_timestamp
+
+  shipping_charge:
+    type: normal
+    mean: 15.0
+    stddev: 5.0
+    min: 2.0
+
+  created_at:
+    type: timestamp
+
+  updated_at:
+    type: timestamp
+
+  is_deleted:
+    type: weighted
+    values:
+      "false": 99
+      "true": 1
