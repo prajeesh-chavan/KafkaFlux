@@ -57,7 +57,7 @@ type ParsedField struct {
 func ParseFieldDef(def string) (ParsedField, error) {
 	parts := strings.Split(def, ",")
 	if len(parts) == 0 {
-		return parsedField{}, fmt.Errorf("empty field definition")
+		return ParsedField{}, fmt.Errorf("empty field definition")
 	}
 
 	var name string
@@ -66,7 +66,7 @@ func ParseFieldDef(def string) (ParsedField, error) {
 	for _, part := range parts {
 		kv := strings.SplitN(part, "=", 2)
 		if len(kv) != 2 {
-			return parsedField{}, fmt.Errorf("invalid key=value pair: %s", part)
+			return ParsedField{}, fmt.Errorf("invalid key=value pair: %s", part)
 		}
 		key := strings.TrimSpace(kv[0])
 		val := strings.TrimSpace(kv[1])
@@ -100,14 +100,14 @@ func ParseFieldDef(def string) (ParsedField, error) {
 		case "values":
 			cfg.Values = ParseWeightedValues(val)
 		default:
-			return parsedField{}, fmt.Errorf("unknown field key: %s", key)
+			return ParsedField{}, fmt.Errorf("unknown field key: %s", key)
 		}
 	}
 
 	if name == "" {
-		return parsedField{}, fmt.Errorf("name is required")
+		return ParsedField{}, fmt.Errorf("name is required")
 	}
-	return parsedField{name: name, cfg: cfg}, nil
+	return ParsedField{Name: name, Cfg: cfg}, nil
 }
 
 func ParseWeightedValues(raw string) map[string]float64 {
