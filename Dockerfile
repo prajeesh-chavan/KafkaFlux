@@ -41,6 +41,7 @@ WORKDIR /root/
 COPY --from=builder /app/kafkaflux .
 
 # CRITICAL: Copy configuration and data directories for runtime
+COPY --from=builder /app/config.yaml .
 COPY --from=builder /app/profiles ./profiles
 COPY --from=builder /app/data ./data
 
