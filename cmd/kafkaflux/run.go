@@ -155,7 +155,6 @@ func runTUI(cfg *config.RuntimeConfig) {
 
 	publisher.Start(ctx, &wg, cfg.Simulator.Workers)
 	sim.Start(ctx, &wg)
-	sim.StartDashboard(ctx, &wg)
 
 	profileNames := make([]string, len(profiles))
 	for i, p := range profiles {
