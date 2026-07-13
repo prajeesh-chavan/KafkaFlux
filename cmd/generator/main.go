@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"go-kafka-simulator/internal/generator"
 )
 
 func main() {
@@ -30,19 +32,19 @@ func main() {
 
 	switch {
 	case *help:
-		printHelp()
+		generator.PrintHelp()
 	case *validate != "":
-		validateProfiles(strings.Split(*validate, ","))
+		generator.ValidateProfiles(strings.Split(*validate, ","))
 	case *initTmpl != "":
-		generateTemplate(*initTmpl)
+		generator.GenerateTemplate(*initTmpl)
 	case *entity != "" || len(fields) > 0:
 		if *entity == "" {
 			fmt.Fprintln(os.Stderr, "Error: --entity is required when using --field")
 			os.Exit(1)
 		}
-		runBatch(*entity, fields)
+		generator.RunBatch(*entity, fields)
 	default:
-		runInteractive()
+		generator.RunInteractive()
 	}
 }
 

@@ -1,4 +1,4 @@
-package main
+package generator
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func validateProfiles(paths []string) {
+func ValidateProfiles(paths []string) {
 	hadErrors := false
 	for _, path := range paths {
 		path = strings.TrimSpace(path)
@@ -17,7 +17,7 @@ func validateProfiles(paths []string) {
 			continue
 		}
 		fmt.Printf("Validating: %s\n", path)
-		err := validateSingle(path)
+		err := ValidateSingle(path)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  ERROR: %v\n", err)
 			hadErrors = true
@@ -30,7 +30,7 @@ func validateProfiles(paths []string) {
 	}
 }
 
-func validateSingle(path string) error {
+func ValidateSingle(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("cannot read file: %w", err)

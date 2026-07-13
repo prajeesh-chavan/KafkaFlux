@@ -1,4 +1,4 @@
-package main
+package generator
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func runBatch(entity string, fields []string) {
+func RunBatch(entity string, fields []string) {
 	profile := config.EntityProfile{
 		Entity:         entity,
 		Topic:          fmt.Sprintf("telemetry.ecommerce.%s", entity),
@@ -21,12 +21,12 @@ func runBatch(entity string, fields []string) {
 	}
 
 	for _, f := range fields {
-		parsed, err := parseFieldDef(f)
+		parsed, err := ParseFieldDef(f)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error parsing field '%s': %v\n", f, err)
 			os.Exit(1)
 		}
-		profile.Fields[parsed.name] = parsed.cfg
+		profile.Fields[parsed.Name] = parsed.Cfg
 	}
 
 	filename := fmt.Sprintf("profiles/%s.yaml", entity)
@@ -49,12 +49,12 @@ func runBatch(entity string, fields []string) {
 	fmt.Printf("Profile saved at: %s\n", filename)
 }
 
-type parsedField struct {
-	name string
-	cfg  field.FieldConfig
+type ParsedField struct {
+	Name string
+	Cfg  field.FieldConfig
 }
 
-func parseFieldDef(def string) (parsedField, error) {
+func ParseFieldDef(def string) (ParsedField, error) {
 	parts := strings.Split(def, ",")
 	if len(parts) == 0 {
 		return parsedField{}, fmt.Errorf("empty field definition")
@@ -98,7 +98,7 @@ func parseFieldDef(def string) (parsedField, error) {
 		case "value":
 			cfg.Value = val
 		case "values":
-			cfg.Values = parseWeightedValues(val)
+			cfg.Values = ParseWeightedValues(val)
 		default:
 			return parsedField{}, fmt.Errorf("unknown field key: %s", key)
 		}
@@ -110,7 +110,7 @@ func parseFieldDef(def string) (parsedField, error) {
 	return parsedField{name: name, cfg: cfg}, nil
 }
 
-func parseWeightedValues(raw string) map[string]float64 {
+func ParseWeightedValues(raw string) map[string]float64 {
 	result := make(map[string]float64)
 	pairs := strings.Split(raw, "|")
 	for _, pair := range pairs {

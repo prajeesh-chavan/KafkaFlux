@@ -1,4 +1,4 @@
-package main
+package generator
 
 import (
 	"bufio"
@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func runInteractive() {
+func RunInteractive() {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("====================================================")
 	fmt.Println("     Welcome to the KafkaFlux Profile Generator     ")
@@ -22,13 +22,13 @@ func runInteractive() {
 		Fields: make(map[string]field.FieldConfig),
 	}
 
-	profile.Entity = askInput(reader, "Enter Entity Name (e.g., orders): ")
-	profile.Topic = askInput(reader, fmt.Sprintf("Enter Kafka Topic [telemetry.%s]: ", profile.Entity))
+	profile.Entity = AskInput(reader, "Enter Entity Name (e.g., orders): ")
+	profile.Topic = AskInput(reader, fmt.Sprintf("Enter Kafka Topic [telemetry.%s]: ", profile.Entity))
 	if profile.Topic == "" {
 		profile.Topic = fmt.Sprintf("telemetry.%s", profile.Entity)
 	}
 
-	epsStr := askInput(reader, "Enter Target Events Per Second (EPS) [100]: ")
+	epsStr := AskInput(reader, "Enter Target Events Per Second (EPS) [100]: ")
 	profile.TargetEPS = 100
 	if epsStr != "" {
 		if val, err := strconv.Atoi(epsStr); err == nil {
@@ -36,7 +36,7 @@ func runInteractive() {
 		}
 	}
 
-	scaleStr := askInput(reader, "Enable Dynamic Scaling? (y/n) [y]: ")
+	scaleStr := AskInput(reader, "Enable Dynamic Scaling? (y/n) [y]: ")
 	profile.DynamicScaling = true
 	if strings.ToLower(scaleStr) == "n" {
 		profile.DynamicScaling = false
@@ -44,7 +44,7 @@ func runInteractive() {
 
 	fmt.Println("\n--- Field Configuration Loop ---")
 	for {
-		fieldName := askInput(reader, "\nEnter Field Name (or press Enter to finish): ")
+		fieldName := AskInput(reader, "\nEnter Field Name (or press Enter to finish): ")
 		if fieldName == "" {
 			break
 		}
@@ -64,96 +64,96 @@ func runInteractive() {
 		fmt.Println("  [12] Conditional Expression")
 		fmt.Println("  [13] Literal Value")
 
-		choice := askInput(reader, "Choose option [1-13]: ")
+		choice := AskInput(reader, "Choose option [1-13]: ")
 
 		switch choice {
 		case "1":
-			genType := askInput(reader, "  Enter type (uuid, int, float, timestamp, boolean, date): ")
+			genType := AskInput(reader, "  Enter type (uuid, int, float, timestamp, boolean, date): ")
 			cfg := field.FieldConfig{Type: genType}
-			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			pub := AskInput(reader, "  Publish to state pool? (leave blank if no): ")
 			if pub != "" {
 				cfg.PublishTo = pub
 			}
 			profile.Fields[fieldName] = cfg
 
 		case "2":
-			genType := askInput(reader, "  Enter type (first_name, last_name, name, full_name, email, phone, username, password): ")
+			genType := AskInput(reader, "  Enter type (first_name, last_name, name, full_name, email, phone, username, password): ")
 			cfg := field.FieldConfig{Type: genType}
-			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			pub := AskInput(reader, "  Publish to state pool? (leave blank if no): ")
 			if pub != "" {
 				cfg.PublishTo = pub
 			}
 			profile.Fields[fieldName] = cfg
 
 		case "3":
-			genType := askInput(reader, "  Enter type (company, company_email, job_title): ")
+			genType := AskInput(reader, "  Enter type (company, company_email, job_title): ")
 			cfg := field.FieldConfig{Type: genType}
-			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			pub := AskInput(reader, "  Publish to state pool? (leave blank if no): ")
 			if pub != "" {
 				cfg.PublishTo = pub
 			}
 			profile.Fields[fieldName] = cfg
 
 		case "4":
-			genType := askInput(reader, "  Enter type (street, city, state, zip, country, country_code, full_address): ")
+			genType := AskInput(reader, "  Enter type (street, city, state, zip, country, country_code, full_address): ")
 			cfg := field.FieldConfig{Type: genType}
-			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			pub := AskInput(reader, "  Publish to state pool? (leave blank if no): ")
 			if pub != "" {
 				cfg.PublishTo = pub
 			}
 			profile.Fields[fieldName] = cfg
 
 		case "5":
-			genType := askInput(reader, "  Enter type (ip, ipv6, mac, user_agent, url, http_method, http_status, mime_type): ")
+			genType := AskInput(reader, "  Enter type (ip, ipv6, mac, user_agent, url, http_method, http_status, mime_type): ")
 			cfg := field.FieldConfig{Type: genType}
-			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			pub := AskInput(reader, "  Publish to state pool? (leave blank if no): ")
 			if pub != "" {
 				cfg.PublishTo = pub
 			}
 			profile.Fields[fieldName] = cfg
 
 		case "6":
-			genType := askInput(reader, "  Enter type (credit_card, currency, sku, product_name): ")
+			genType := AskInput(reader, "  Enter type (credit_card, currency, sku, product_name): ")
 			cfg := field.FieldConfig{Type: genType}
-			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			pub := AskInput(reader, "  Publish to state pool? (leave blank if no): ")
 			if pub != "" {
 				cfg.PublishTo = pub
 			}
 			profile.Fields[fieldName] = cfg
 
 		case "7":
-			genType := askInput(reader, "  Enter type (word, sentence, paragraph): ")
+			genType := AskInput(reader, "  Enter type (word, sentence, paragraph): ")
 			cfg := field.FieldConfig{Type: genType}
-			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			pub := AskInput(reader, "  Publish to state pool? (leave blank if no): ")
 			if pub != "" {
 				cfg.PublishTo = pub
 			}
 			profile.Fields[fieldName] = cfg
 
 		case "8":
-			genType := askInput(reader, "  Enter type (latitude, longitude, timezone): ")
+			genType := AskInput(reader, "  Enter type (latitude, longitude, timezone): ")
 			cfg := field.FieldConfig{Type: genType}
-			pub := askInput(reader, "  Publish to state pool? (leave blank if no): ")
+			pub := AskInput(reader, "  Publish to state pool? (leave blank if no): ")
 			if pub != "" {
 				cfg.PublishTo = pub
 			}
 			profile.Fields[fieldName] = cfg
 
 		case "9":
-			distType := askInput(reader, "  Enter distribution (range, normal, poisson): ")
+			distType := AskInput(reader, "  Enter distribution (range, normal, poisson): ")
 			switch distType {
 			case "range":
-				minStr := askInput(reader, "  Min: ")
-				maxStr := askInput(reader, "  Max: ")
+				minStr := AskInput(reader, "  Min: ")
+				maxStr := AskInput(reader, "  Max: ")
 				min, _ := strconv.ParseFloat(minStr, 64)
 				max, _ := strconv.ParseFloat(maxStr, 64)
 				profile.Fields[fieldName] = field.FieldConfig{Type: "range", Min: &min, Max: &max}
 			case "normal":
-				meanStr := askInput(reader, "  Mean: ")
-				stddevStr := askInput(reader, "  Stddev: ")
+				meanStr := AskInput(reader, "  Mean: ")
+				stddevStr := AskInput(reader, "  Stddev: ")
 				mean, _ := strconv.ParseFloat(meanStr, 64)
 				stddev, _ := strconv.ParseFloat(stddevStr, 64)
-				minStr := askInput(reader, "  Min clamp (leave blank if none): ")
+				minStr := AskInput(reader, "  Min clamp (leave blank if none): ")
 				cfg := field.FieldConfig{Type: "normal", Mean: &mean, Stddev: &stddev}
 				if minStr != "" {
 					min, _ := strconv.ParseFloat(minStr, 64)
@@ -161,24 +161,24 @@ func runInteractive() {
 				}
 				profile.Fields[fieldName] = cfg
 			case "poisson":
-				lambdaStr := askInput(reader, "  Lambda: ")
+				lambdaStr := AskInput(reader, "  Lambda: ")
 				lambda, _ := strconv.ParseFloat(lambdaStr, 64)
 				profile.Fields[fieldName] = field.FieldConfig{Type: "poisson", Lambda: &lambda}
 			}
 
 		case "10":
-			poolName := askInput(reader, "  Pool name: ")
+			poolName := AskInput(reader, "  Pool name: ")
 			profile.Fields[fieldName] = field.FieldConfig{Type: "pool", PoolName: poolName}
 
 		case "11":
 			values := make(map[string]float64)
 			fmt.Println("  Enter value/weight pairs (blank value to finish):")
 			for {
-				val := askInput(reader, "    Value: ")
+				val := AskInput(reader, "    Value: ")
 				if val == "" {
 					break
 				}
-				wStr := askInput(reader, "    Weight: ")
+				wStr := AskInput(reader, "    Weight: ")
 				weight, _ := strconv.ParseFloat(wStr, 64)
 				values[val] = weight
 			}
@@ -188,25 +188,25 @@ func runInteractive() {
 			fmt.Println("  Enter conditional rules (blank when to finish):")
 			var rules []field.ConditionalRule
 			for {
-				when := askInput(reader, "    When (e.g., status == COMPLETED): ")
+				when := AskInput(reader, "    When (e.g., status == COMPLETED): ")
 				if when == "" {
 					break
 				}
-				thenType := askInput(reader, "    Then type (e.g., timestamp): ")
+				thenType := AskInput(reader, "    Then type (e.g., timestamp): ")
 				rules = append(rules, field.ConditionalRule{
 					When: when,
 					Then: &field.FieldConfig{Type: thenType},
 				})
 			}
 			cfg := field.FieldConfig{Type: "conditional", Rules: rules}
-			def := askInput(reader, "  Default type (leave blank for null): ")
+			def := AskInput(reader, "  Default type (leave blank for null): ")
 			if def != "" {
 				cfg.Default = &field.FieldConfig{Type: def}
 			}
 			profile.Fields[fieldName] = cfg
 
 		case "13":
-			literal := askInput(reader, "  Literal value: ")
+			literal := AskInput(reader, "  Literal value: ")
 			profile.Fields[fieldName] = field.FieldConfig{Value: literal}
 		}
 	}
@@ -231,7 +231,7 @@ func runInteractive() {
 	fmt.Printf("\nProfile saved at: %s\n", filename)
 }
 
-func askInput(reader *bufio.Reader, prompt string) string {
+func AskInput(reader *bufio.Reader, prompt string) string {
 	fmt.Print(prompt)
 	input, _ := reader.ReadString('\n')
 	return strings.TrimSpace(input)

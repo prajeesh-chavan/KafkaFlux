@@ -1,4 +1,4 @@
-package main
+package generator
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func generateTemplate(name string) {
+func GenerateTemplate(name string) {
 	tmpl, ok := templates[strings.ToLower(name)]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "Unknown template: %s\n", name)

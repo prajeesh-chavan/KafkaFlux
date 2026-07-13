@@ -1,8 +1,8 @@
-package main
+package generator
 
 import "fmt"
 
-func printHelp() {
+func PrintHelp() {
 	fmt.Println(`
 KafkaFlux Profile Field Types
 ==============================
