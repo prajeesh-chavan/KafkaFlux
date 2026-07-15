@@ -22,13 +22,13 @@ jobs:
       - run: mkdir -p dist
 
       - name: Build producer (linux/amd64)
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dist/kafkaflux-producer-${{ github.ref_name }}-linux-amd64 ./cmd/producer/main.go
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dist/kafkaflux-producer-${{ github.ref_name }}-linux-amd64 ./cmd/producer/
       - name: Build producer (linux/arm64)
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o dist/kafkaflux-producer-${{ github.ref_name }}-linux-arm64 ./cmd/producer/main.go
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o dist/kafkaflux-producer-${{ github.ref_name }}-linux-arm64 ./cmd/producer/
       - name: Build generator (linux/amd64)
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dist/kafkaflux-generator-${{ github.ref_name }}-linux-amd64 ./cmd/generator/main.go
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dist/kafkaflux-generator-${{ github.ref_name }}-linux-amd64 ./cmd/generator/
       - name: Build generator (linux/arm64)
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o dist/kafkaflux-generator-${{ github.ref_name }}-linux-arm64 ./cmd/generator/main.go
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o dist/kafkaflux-generator-${{ github.ref_name }}-linux-arm64 ./cmd/generator/
 
       - name: Package profiles
         run: tar czf dist/profiles-${{ github.ref_name }}.tar.gz profiles/
