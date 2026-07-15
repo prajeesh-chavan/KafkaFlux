@@ -14,10 +14,16 @@ import (
 	"go-kafka-simulator/internal/field"
 )
 
-func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *config.EntityProfile) {
+func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *config.EntityProfile, idx int) {
 	defer wg.Done()
 
-	localRand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	var seed int64
+	if s.seed != 0 {
+		seed = s.seed + int64(idx)
+	} else {
+		seed = time.Now().UnixNano()
+	}
+	localRand := rand.New(rand.NewSource(seed))
 	startTime := time.Now()
 
 	var currentEPS float64
@@ -28,6 +34,12 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 
 	currentEPS = float64(prof.TargetEPS)
 	interval = time.Second / time.Duration(currentEPS)
+
+	batchSize := prof.BatchSize
+	if batchSize == 0 {
+		batchSize = s.batchSize
+	}
+	var produced int64
 
 	for {
 		select {
@@ -105,6 +117,11 @@ func (s *Simulator) runWorker(ctx context.Context, wg *sync.WaitGroup, prof *con
 				if s.metrics != nil {
 					s.metrics.IncEventsTotal(prof.Entity)
 					s.metrics.SetEPS(prof.Entity, currentEPS)
+				}
+				produced++
+				if batchSize > 0 && produced >= batchSize {
+					slog.Debug("batch complete", "entity", prof.Entity, "count", produced)
+					return
 				}
 			} else {
 				s.bufPool.Put(buf)

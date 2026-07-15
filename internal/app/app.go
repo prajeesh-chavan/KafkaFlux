@@ -51,29 +51,60 @@ func Run() {
 	publisher.SetMetrics(metrics)
 	defer publisher.Close()
 
-	sim := engine.NewSimulator(profiles, eventChannel, bufPool, metrics)
+	// Resolve per-profile batch sizes from global default
+	if cfg.BatchSize > 0 {
+		for _, p := range profiles {
+			if p.BatchSize == 0 {
+				p.BatchSize = cfg.BatchSize
+			}
+		}
+	}
+	hasBatch := false
+	for _, p := range profiles {
+		if p.BatchSize > 0 {
+			hasBatch = true
+			break
+		}
+	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
+	sim := engine.NewSimulator(profiles, eventChannel, bufPool, metrics, cfg.Seed, cfg.BatchSize)
+
+	ctx := context.Background()
+	prodCtx, prodCancel := context.WithCancel(ctx)
+	pubCtx, pubCancel := context.WithCancel(ctx)
+	var workerWg sync.WaitGroup
+	var pubWg sync.WaitGroup
 
 	metricsPort := cfg.Simulator.MetricsPort
 	if metricsPort == 0 {
 		metricsPort = 9099
 	}
-	go startMetricsServer(ctx, metricsPort, metrics)
+	go startMetricsServer(pubCtx, metricsPort, metrics)
 
-	publisher.Start(ctx, &wg, cfg.Simulator.Workers)
-	sim.Start(ctx, &wg)
-	sim.StartDashboard(ctx, &wg)
+	publisher.Start(pubCtx, &pubWg, cfg.Simulator.Workers)
+	sim.Start(prodCtx, &workerWg)
+	sim.StartDashboard(pubCtx, &pubWg)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
 
+	if hasBatch {
+		go func() {
+			workerWg.Wait()
+			sigChan <- syscall.SIGTERM
+		}()
+	}
+
+	<-sigChan
 	slog.Info("shutdown signal received, halting pipelines")
-	cancel()
-	wg.Wait()
+
+	prodCancel()
+	workerWg.Wait()
 	close(eventChannel)
+	pubWg.Wait()
+
+	pubCancel()
+	publisher.Close()
 	slog.Info("system offline")
 }
 
