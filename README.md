@@ -4,12 +4,12 @@
   <p>
     <a href="#quick-start">Quick Start</a> •
     <a href="#download">Download</a> •
+    <a href="#why-kafkaflux">Why KafkaFlux?</a> •
     <a href="#architecture">Architecture</a> •
     <a href="#features">Features</a> •
     <a href="#running">Running</a> •
     <a href="#example-profiles">Example Profiles</a> •
-    <a href="#configuration">Configuration</a> •
-    <a href="#metrics">Metrics</a>
+    <a href="#configuration">Configuration</a>
   </p>
   <p>
     <img src="https://img.shields.io/badge/Go-1.25-00ADD8?logo=go" alt="Go 1.25">
@@ -39,7 +39,24 @@ cd KafkaFlux
 docker compose up
 ```
 
-That's it. Zookeeper + Kafka + the simulator start together. Open another terminal:
+That's it. Zookeeper + Kafka + the simulator start together. You'll immediately see:
+
+```
+======================================================================
+     KAFKAFLUX EVENT STREAM SIMULATOR
+======================================================================
+ System Uptime: 12s | Profiles: 8 | Transport: KAFKA
+ Buffer Channel Load: [████................] 21% (21212 / 100000)
+----------------------------------------------------------------------
+ENTITY           TOPIC                          CURR_EPS     TOTAL_EVENTS
+----------------------------------------------------------------------
+customers        telemetry.ecommerce.customers   10           112
+orders           telemetry.ecommerce.orders      50           524
+payments         telemetry.ecommerce.payments    45           478
+...
+```
+
+Open another terminal:
 
 ```sh
 curl localhost:9099/              # JSON status dashboard
@@ -70,6 +87,22 @@ chmod +x kafkaflux-producer-kafka-linux-amd64
 ./kafkaflux-producer-kafka-linux-amd64
 ```
 
+Also available: `kafkaflux-generator` (profile generator), `linux-arm64` builds, and `profiles.tar.gz`.
+
+---
+
+## Why KafkaFlux?
+
+Most teams write custom scripts to push test data into Kafka. Then rewrite them for the next project. Then again for the next.
+
+KafkaFlux treats test data like **infrastructure — not a script.** Declarative YAML configs, reusable across projects, version-controllable, one command to run.
+
+| Compared to | KafkaFlux |
+|-------------|-----------|
+| Custom scripts | YAML config, reusable, no coding |
+| Other simulators | 2 external deps, single Go binary, ~20MB image |
+| Static test data | Realistic streams with edge cases, bursts, chaos |
+
 ---
 
 ## Architecture
@@ -83,24 +116,211 @@ config.yaml ──> app.Run() ──> engine.Simulator ──> transport.Publish
                HTTP server)
 ```
 
-Packages: `app`, `config`, `engine`, `field`, `pool`, `telemetry`, `transport`.
+### Package Map
+
+| Package | Purpose |
+|---------|---------|
+| `cmd/producer` | Entrypoint — 7 lines, calls `app.Run()` |
+| `cmd/generator` | CLI tool for generating/validating profile YAMLs |
+| `internal/app` | Wiring: config, profiles, publisher, simulator, metrics, lifecycle |
+| `internal/config` | YAML config loading, env override, profile compilation |
+| `internal/engine` | Simulator, workers, state pools, sine-wave scaler, dashboard |
+| `internal/field` | 50+ field generators + `CompileField` dispatcher |
+| `internal/pool` | `BufferPool` interface + `SyncPool` for byte slice reuse |
+| `internal/telemetry` | Structured logging (`slog`) + Prometheus/JSON metrics HTTP server |
+| `internal/transport` | `DataPublisher` interface + Kafka / File implementations |
 
 ---
 
 ## Features
 
-- **50+ field types** — uuid, int, float, boolean, names, emails, phones, addresses, IPs, user agents, credit cards, lat/lng, sentences, distributions (normal, poisson, range), conditionals, weighted enums, state pools
-- **33 starter profiles** — 30 ecommerce entities (orders, customers, payments, inventory, shipments, etc.) + 3 IoT (sensors, device events, GPS tracking)
-- **Profile organization** — domain subdirectories (`ecommerce/`, `iot/`), `enabled` flag, runtime filter via glob or entity name
-- **Output** — Kafka (default), JSON files, CSV files
-- **Deterministic mode** — same seed = same output, via `SIMULATOR_SEED` env or `seed` config
-- **Batch mode** — generate N events per entity then exit, via `BATCH_SIZE` env or `batch_size` config
-- **Graceful drain** — two-phase shutdown, zero event loss on SIGINT/SIGTERM
-- **Chaos injection** — random drop percentage, per-field corruption rate
-- **Dynamic scaling** — sinusoidal traffic patterns over a 10-minute window
-- **Prometheus metrics** — events/sec, buffer fill, delivery failures at `:9099/metrics`
-- **Structured logging** — `log/slog` with configurable level (`info`, `debug`, `warn`, `error`)
-- **Pre-built binaries** — Linux amd64 + arm64, static (JSON/CSV) and Kafka-enabled
+### Define Any Data Shape
+
+Schemas are pure YAML. No code to write. Swap domains by swapping config files.
+
+```yaml
+# An order event — could just as easily be a sensor reading or log entry
+entity: orders
+topic: "telemetry.ecommerce.orders"
+target_eps: 50
+
+fields:
+  order_id:
+    type: uuid
+    publish_to: orders
+  customer_id:
+    type: pool
+    pool: customers
+  order_status:
+    type: weighted
+    values:
+      PLACED: 15
+      CONFIRMED: 15
+      SHIPPED: 20
+      DELIVERED: 25
+      CANCELLED: 4
+      RETURNED: 1
+```
+
+### Profile Organization
+
+Profiles live in domain subdirectories. Organize by domain, enable/disable individually, and filter at runtime.
+
+```sh
+profiles/
+├── ecommerce/          # 30 entity profiles
+│   ├── orders.yaml
+│   ├── customers.yaml
+│   └── ...
+└── iot/                # 3 IoT profiles
+    ├── sensors.yaml
+    ├── device_events.yaml
+    └── gps_tracking.yaml
+```
+
+```yaml
+# config.yaml
+simulator:
+  profiles: ["orders", "iot/*"]   # runtime filter by entity name + glob
+```
+
+Per-profile options:
+```yaml
+entity: sensors
+enabled: false            # permanently disable without deleting
+batch_size: 5000          # per-profile batch (overrides global)
+```
+
+### 50+ Field Generators
+
+| Category | Types |
+|----------|-------|
+| **Primitives** | `uuid`, `int`, `float`, `timestamp`, `boolean` |
+| **Identity** | `first_name`, `last_name`, `name`, `full_name`, `email`, `phone`, `username`, `password`, `ssn` |
+| **Business** | `company`, `company_email`, `job_title`, `currency`, `language` |
+| **Location** | `street`, `city`, `state`, `zip`, `country`, `country_code`, `full_address` |
+| **Geo** | `latitude`, `longitude`, `coordinate_pair`, `timezone` |
+| **Network** | `ip`, `ipv6`, `mac`, `user_agent`, `http_method`, `http_status`, `mime_type` |
+| **Finance** | `credit_card` |
+| **Ecommerce** | `sku`, `product_name`, `url` |
+| **Text** | `word`, `sentence`, `paragraph`, `lorem ipsum` |
+| **Time** | `past_timestamp`, `future_timestamp`, `date`, `birth_date` |
+| **Distributions** | `range` (uniform), `normal` (Gaussian), `poisson` |
+| **Composite** | `weighted` (CDF-based enum), `pool` (cross-ref fetch), `conditional`, `regex`, literal values |
+
+### Cross-Entity References
+
+Entities share IDs through **state pools**. When `orders` publishes an `order_id`, `payments` and `shipments` can reference it:
+
+```yaml
+# profiles/ecommerce/payments.yaml
+fields:
+  order_id:
+    type: pool
+    pool: orders            # Fetches a real order_id generated by the orders profile
+```
+
+### Deterministic Mode
+
+Same config + same seed = same output. Perfect for tests, debugging, and demos.
+
+```sh
+SIMULATOR_SEED=42 go run ./cmd/producer/main.go
+```
+
+Or in `config.yaml`:
+```yaml
+simulator:
+  seed: 42          # 0 = random (default)
+```
+
+### Batch Mode
+
+Generate exactly N events per entity and stop — no need to Ctrl+C. Ideal for CI/CD, test datasets, and benchmarks.
+
+```sh
+BATCH_SIZE=10000 go run ./cmd/producer/main.go
+```
+
+Or per-profile in YAML:
+```yaml
+entity: orders
+batch_size: 5000
+```
+
+### Graceful Drain
+
+On shutdown (SIGINT/SIGTERM or batch completion), the simulator stops producers first, drains the 100k event channel buffer, then flushes Kafka — ensuring zero event loss.
+
+### Dynamic Traffic Scaling
+
+Traffic follows a **sine wave** over a 10-minute period, ranging from **0.1x to 1.6x** of the target EPS — simulating realistic patterns (ramp, peak, taper):
+
+```go
+func getTrafficScale(startTime time.Time) float64 {
+    duration := time.Since(startTime)
+    seconds := math.Mod(duration.Seconds(), 600.0)
+    radians := (2.0 * math.Pi * seconds / 600.0) - (math.Pi / 2.0)
+    scale := 1.0 + (0.6 * math.Sin(radians))
+    if scale < 0.1 { return 0.1 }
+    return scale
+}
+```
+
+### Chaos Engineering
+
+- **Event drops**: Per-profile `drop_percentage` randomly discards events
+- **Field corruption**: Per-field `rate` replaces values with `NULL` or `CHAOS_CORRUPTION_ERR`
+- Use case: Test how downstream pipelines handle incomplete or corrupted data
+
+### Conditional Fields
+
+Fields generated **only when a condition is met** — keeps data logically consistent:
+
+```yaml
+failure_code:
+  type: conditional
+  rules:
+    - when: payment_status == FAILED
+      then:
+        type: weighted
+        values:
+          INSUFFICIENT_FUNDS: 35
+          CARD_DECLINED: 25
+```
+
+### Real-Time Dashboard
+
+```
+======================================================================
+     KAFKAFLUX EVENT STREAM SIMULATOR
+======================================================================
+ System Uptime: 2m35s | Profiles: 8 | Transport: KAFKA
+ Buffer Channel Load: ████████░░░░░░░░░░░░ 42% (42345 / 100000)
+----------------------------------------------------------------------
+ENTITY           TOPIC                          CURR_EPS     TOTAL_EVENTS
+----------------------------------------------------------------------
+customers        telemetry.ecommerce.customers   10           15,342
+orders           telemetry.ecommerce.orders      78           87,231 [Dynamic]
+payments         telemetry.ecommerce.payments    45           77,834
+...
+```
+
+In non-TTY mode (e.g., Docker logs, CI), a compact status line prints every 10s.
+
+### Prometheus Metrics
+
+Exposed at `http://localhost:9099/metrics`:
+
+```
+kafkaflux_events_total{entity="orders"} 87231
+kafkaflux_events_dropped_total 1234
+kafkaflux_delivery_failures_total 0
+kafkaflux_current_eps{entity="orders"} 78.345
+kafkaflux_buffer_fill 42345
+kafkaflux_buffer_cap 100000
+kafkaflux_uptime_seconds 155
+```
 
 ---
 
@@ -112,11 +332,18 @@ Packages: `app`, `config`, `engine`, `field`, `pool`, `telemetry`, `transport`.
 docker compose up
 ```
 
-Starts Zookeeper, Kafka, and the producer with live dashboard on port 9099.
+Starts:
+- **Zookeeper** (port 2181)
+- **Kafka** (port 9092)
+- **Producer** with live dashboard (port 9099)
 
-### Pre-built Binary
+Mounts `./profiles/`, `./data/`, `./config.yaml` from host — edit profiles without rebuilding.
+
+### Pre-built Binary (no Go, no Docker)
 
 ```sh
+curl -LO https://github.com/prajeesh-chavan/KafkaFlux/releases/latest/download/kafkaflux-producer-linux-amd64
+chmod +x kafkaflux-producer-linux-amd64
 SIMULATOR_MODE=json ./kafkaflux-producer-linux-amd64
 ```
 
@@ -139,7 +366,7 @@ BATCH_SIZE=10000 SIMULATOR_MODE=json go run ./cmd/producer/main.go
 SIMULATOR_SEED=42 SIMULATOR_MODE=json go run ./cmd/producer/main.go
 ```
 
-### Profile Generator
+### Profile Generator CLI
 
 ```sh
 go run ./cmd/generator                      # Interactive mode
@@ -172,29 +399,9 @@ Environment variable overrides:
 | `SIMULATOR_MODE` | Transport mode | `kafka` |
 | `KAFKA_BROKERS` | Kafka servers | `kafka:29092` |
 | `OUTPUT_FILE_PATH` | Output directory | `./data_output` |
-| `PROFILES` | Profile filter | config.yaml value |
+| `PROFILES` | Profile filter (comma-separated) | `config.yaml` value |
 | `SIMULATOR_SEED` | Deterministic seed | YAML value (0) |
 | `BATCH_SIZE` | Batch event limit | YAML value (0) |
-
----
-
-## Example Profiles
-
-```
-profiles/
-├── ecommerce/           # 30 ecommerce entities
-│   ├── orders.yaml
-│   ├── customers.yaml
-│   ├── payments.yaml
-│   ├── inventory.yaml
-│   ├── shipments.yaml
-│   ├── products.yaml
-│   └── ... (24 more)
-└── iot/                 # 3 IoT entities
-      ├── sensors.yaml
-      ├── device_events.yaml
-      └── gps_tracking.yaml
-```
 
 ---
 
@@ -243,9 +450,25 @@ Run `generator --help` for the full type reference.
 ## Development
 
 ```sh
-go test -count=1 ./...     # 67 tests
+go test -count=1 ./...     # 67 tests across 14 test files
 go vet ./...               # Static analysis
 go build ./...             # Verify compilation
 ```
 
-Requires CGO + `librdkafka` for Kafka mode. Use `SIMULATOR_MODE=json` to develop without Kafka.
+**Note**: Kafka mode requires CGO + `librdkafka`. Use `SIMULATOR_MODE=json` for local development without Kafka.
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| Language | Go 1.25 |
+| External dependencies | **2** (`confluent-kafka-go/v2` + `gopkg.in/yaml.v3`) |
+| Runtime image | ~20MB (Alpine-based) |
+| Kafka Client | `confluent-kafka-go/v2` |
+| Config | YAML |
+| Orchestration | Docker Compose |
+| Metrics | Prometheus text format (hand-rolled) |
+| Logging | `log/slog` (structured, leveled) |
+| CI/CD | GitHub Actions (build + test + vet + release) |
