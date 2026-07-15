@@ -19,9 +19,11 @@ type Simulator struct {
 	StartTime     time.Time
 	EventCounters map[string]*uint64
 	CurrentEPS    map[string]*uint64
+	seed          int64
+	batchSize     int64
 }
 
-func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent, bufPool pool.BufferPool, metrics *telemetry.Metrics) *Simulator {
+func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent, bufPool pool.BufferPool, metrics *telemetry.Metrics, seed, batchSize int64) *Simulator {
 	counters := make(map[string]*uint64)
 	epsTracker := make(map[string]*uint64)
 
@@ -41,12 +43,14 @@ func NewSimulator(profiles []*config.EntityProfile, outChan chan *DataEvent, buf
 		CurrentEPS:    epsTracker,
 		bufPool:       bufPool,
 		metrics:       metrics,
+		seed:          seed,
+		batchSize:     batchSize,
 	}
 }
 
 func (s *Simulator) Start(ctx context.Context, wg *sync.WaitGroup) {
-	for _, prof := range s.profiles {
+	for i, prof := range s.profiles {
 		wg.Add(1)
-		go s.runWorker(ctx, wg, prof)
+		go s.runWorker(ctx, wg, prof, i)
 	}
 }

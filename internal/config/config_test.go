@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -121,6 +122,8 @@ func loadRuntimeFrom(configPath string) (*RuntimeConfig, error) {
 		Broker:     broker,
 		OutputPath: outputPath,
 		Profiles:   cfg.Simulator.Profiles,
+		Seed:       cfg.Simulator.Seed,
+		BatchSize:  cfg.Simulator.BatchSize,
 	}
 
 	envProfiles := os.Getenv("PROFILES")
@@ -130,6 +133,18 @@ func loadRuntimeFrom(configPath string) (*RuntimeConfig, error) {
 			parsed[i] = strings.TrimSpace(parsed[i])
 		}
 		rc.Profiles = parsed
+	}
+
+	if envSeed := os.Getenv("SIMULATOR_SEED"); envSeed != "" {
+		if parsed, err := strconv.ParseInt(envSeed, 10, 64); err == nil {
+			rc.Seed = parsed
+		}
+	}
+
+	if envBatch := os.Getenv("BATCH_SIZE"); envBatch != "" {
+		if parsed, err := strconv.ParseInt(envBatch, 10, 64); err == nil {
+			rc.BatchSize = parsed
+		}
 	}
 
 	return rc, nil

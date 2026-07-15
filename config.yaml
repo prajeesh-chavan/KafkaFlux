@@ -9,3 +9,5 @@ simulator:
   kafka_servers: "kafka:29092"
   metrics_port: 9099
   log_level: "info"
+  # seed: 42              # deterministic mode: 0 = random (default)
+  # batch_size: 10000     # generate N events per entity, then stop; 0 = continuous

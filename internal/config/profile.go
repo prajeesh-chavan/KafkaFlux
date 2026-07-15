@@ -18,6 +18,7 @@ type EntityProfile struct {
 	TargetEPS      int                         `yaml:"target_eps"`
 	DynamicScaling bool                        `yaml:"dynamic_scaling"`
 	Chaos          ChaosConfig                 `yaml:"chaos"`
+	BatchSize      int64                       `yaml:"batch_size"`
 	Fields         map[string]field.FieldConfig `yaml:"-"`
 	Compiled       []FieldOrder                 `yaml:"-"`
 	RawFields      yaml.Node                    `yaml:"fields"`
