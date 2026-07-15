@@ -1,0 +1,36 @@
+entity: device_events
+topic: "telemetry.iot.device_events"
+target_eps: 30
+dynamic_scaling: false
+
+chaos:
+  drop_percentage: 0.0
+  corrupt_fields: {}
+
+fields:
+  event_id:
+    type: uuid
+  device_id:
+    type: uuid
+    publish_to: devices
+  event_type:
+    type: weighted
+    values:
+      ONLINE: 20
+      OFFLINE: 15
+      ERROR: 5
+      FIRMWARE_UPDATE: 3
+      CONFIG_CHANGE: 7
+      ALERT: 10
+  severity:
+    type: weighted
+    values:
+      INFO: 50
+      WARNING: 30
+      CRITICAL: 20
+  ip_address:
+    type: ip
+  firmware_version:
+    type: word
+  timestamp:
+    type: timestamp

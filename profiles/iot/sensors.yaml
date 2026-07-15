@@ -1,0 +1,43 @@
+entity: sensors
+topic: "telemetry.iot.sensors"
+target_eps: 100
+dynamic_scaling: true
+
+chaos:
+  drop_percentage: 1.0
+  corrupt_fields: {}
+
+fields:
+  sensor_id:
+    type: uuid
+    publish_to: sensors
+  device_id:
+    type: uuid
+  type:
+    type: weighted
+    values:
+      TEMPERATURE: 30
+      HUMIDITY: 25
+      PRESSURE: 20
+      AIR_QUALITY: 15
+      LIGHT: 10
+  value:
+    type: float
+  unit:
+    type: weighted
+    values:
+      CELSIUS: 30
+      PERCENT: 25
+      HPA: 20
+      PPM: 15
+      LUX: 10
+  battery:
+    type: range
+    min: 0
+    max: 100
+  signal_strength:
+    type: range
+    min: -120
+    max: -30
+  timestamp:
+    type: past_timestamp

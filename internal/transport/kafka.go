@@ -26,6 +26,7 @@ func NewKafkaPublisher(brokers string, inChan chan *engine.DataEvent) (*KafkaPub
 		"compression.type":             "snappy",
 		"linger.ms":                    "20",
 		"queue.buffering.max.messages": "500000",
+		"log_level":                    "0",
 	})
 	if err != nil {
 		return nil, err

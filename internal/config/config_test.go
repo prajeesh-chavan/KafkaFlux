@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -114,10 +115,52 @@ func loadRuntimeFrom(configPath string) (*RuntimeConfig, error) {
 		outputPath = "./data_output"
 	}
 
-	return &RuntimeConfig{
+	rc := &RuntimeConfig{
 		Config:     *cfg,
 		Mode:       mode,
 		Broker:     broker,
 		OutputPath: outputPath,
-	}, nil
+		Profiles:   cfg.Simulator.Profiles,
+	}
+
+	envProfiles := os.Getenv("PROFILES")
+	if envProfiles != "" {
+		parsed := strings.Split(envProfiles, ",")
+		for i := range parsed {
+			parsed[i] = strings.TrimSpace(parsed[i])
+		}
+		rc.Profiles = parsed
+	}
+
+	return rc, nil
+}
+
+func TestLoadRuntimeProfilesEnvVar(t *testing.T) {
+	content := `simulator:
+  workers: 8
+  profiles_dir: "./profiles"
+  kafka_servers: "kafka:29092"
+  metrics_port: 9099
+  log_level: "info"
+`
+	path := writeTempConfig(t, content)
+
+	os.Setenv("PROFILES", "orders,payments")
+	t.Cleanup(func() {
+		os.Unsetenv("PROFILES")
+	})
+
+	rc, err := loadRuntimeFrom(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rc.Profiles) != 2 {
+		t.Fatalf("expected 2 profiles from env, got %d", len(rc.Profiles))
+	}
+	if rc.Profiles[0] != "orders" {
+		t.Fatalf("expected orders, got %s", rc.Profiles[0])
+	}
+	if rc.Profiles[1] != "payments" {
+		t.Fatalf("expected payments, got %s", rc.Profiles[1])
+	}
 }

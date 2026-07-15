@@ -27,11 +27,12 @@ func Run() {
 
 	telemetry.InitLogger(cfg.Simulator.LogLevel)
 
-	profiles, err := config.LoadProfiles(cfg.Simulator.ProfilesDir)
+	profiles, err := config.LoadProfiles(cfg.Simulator.ProfilesDir, cfg.Profiles)
 	if err != nil {
 		slog.Error("failed to load profiles", "error", err)
 		os.Exit(1)
 	}
+	slog.Info("profiles loaded", "count", len(profiles))
 
 	_, err = field.InitDataLoader("data")
 	if err != nil {

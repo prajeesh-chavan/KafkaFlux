@@ -1,6 +1,11 @@
 simulator:
   workers: 8
   profiles_dir: "./profiles"
+  # Optional: filter profiles by entity name or glob (e.g., "ecommerce/*").
+  # Leave empty to load all enabled profiles from all subdirectories.
+  # Env override: PROFILES=orders,payments
+  # Example: ["orders", "iot/*"] runs orders entity + all iot profiles
+  profiles: ["iot/*","orders"]
   kafka_servers: "kafka:29092"
   metrics_port: 9099
   log_level: "info"

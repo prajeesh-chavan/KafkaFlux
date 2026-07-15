@@ -1,17 +1,21 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 type Config struct {
 	Simulator SimulatorConfig `yaml:"simulator"`
 }
 
 type SimulatorConfig struct {
-	Workers      int    `yaml:"workers"`
-	ProfilesDir  string `yaml:"profiles_dir"`
-	KafkaServers string `yaml:"kafka_servers"`
-	MetricsPort  int    `yaml:"metrics_port"`
-	LogLevel     string `yaml:"log_level"`
+	Workers      int      `yaml:"workers"`
+	ProfilesDir  string   `yaml:"profiles_dir"`
+	Profiles     []string `yaml:"profiles"`
+	KafkaServers string   `yaml:"kafka_servers"`
+	MetricsPort  int      `yaml:"metrics_port"`
+	LogLevel     string   `yaml:"log_level"`
 }
 
 type RuntimeConfig struct {
@@ -19,6 +23,7 @@ type RuntimeConfig struct {
 	Mode       string
 	Broker     string
 	OutputPath string
+	Profiles   []string
 }
 
 func LoadRuntime() (*RuntimeConfig, error) {
@@ -42,10 +47,22 @@ func LoadRuntime() (*RuntimeConfig, error) {
 		outputPath = "./data_output"
 	}
 
-	return &RuntimeConfig{
+	rc := &RuntimeConfig{
 		Config:     *cfg,
 		Mode:       mode,
 		Broker:     broker,
 		OutputPath: outputPath,
-	}, nil
+		Profiles:   cfg.Simulator.Profiles,
+	}
+
+	envProfiles := os.Getenv("PROFILES")
+	if envProfiles != "" {
+		parsed := strings.Split(envProfiles, ",")
+		for i := range parsed {
+			parsed[i] = strings.TrimSpace(parsed[i])
+		}
+		rc.Profiles = parsed
+	}
+
+	return rc, nil
 }
