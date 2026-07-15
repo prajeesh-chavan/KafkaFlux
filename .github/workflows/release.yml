@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  static:
+    name: Build static binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - run: go mod download
+      - run: mkdir -p dist
+
+      - name: Build producer (linux/amd64)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dist/kafkaflux-producer-${{ github.ref_name }}-linux-amd64 ./cmd/producer/main.go
+      - name: Build producer (linux/arm64)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o dist/kafkaflux-producer-${{ github.ref_name }}-linux-arm64 ./cmd/producer/main.go
+      - name: Build generator (linux/amd64)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dist/kafkaflux-generator-${{ github.ref_name }}-linux-amd64 ./cmd/generator/main.go
+      - name: Build generator (linux/arm64)
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o dist/kafkaflux-generator-${{ github.ref_name }}-linux-arm64 ./cmd/generator/main.go
+
+      - name: Package profiles
+        run: tar czf dist/profiles-${{ github.ref_name }}.tar.gz profiles/
+      - name: Generate checksums
+        run: cd dist && sha256sum * > checksums-${{ github.ref_name }}.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: static-binaries
+          path: dist/*
+
+  kafka:
+    name: Build Kafka binary via Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: mkdir -p dist
+
+      - name: Build Docker image (builder stage)
+        run: docker build --target builder -t kafkaflux-builder .
+      - name: Extract binary
+        run: |
+          docker create --name temp kafkaflux-builder
+          docker cp temp:/app/kafka-producer dist/kafkaflux-producer-${{ github.ref_name }}-kafka-linux-amd64
+          docker rm temp
+      - name: Generate checksum
+        run: cd dist && sha256sum kafkaflux-producer-${{ github.ref_name }}-kafka-linux-amd64 > checksums-${{ github.ref_name }}-kafka.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kafka-binary
+          path: dist/*
+
+  release:
+    name: Create Release
+    needs: [static, kafka]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            kafkaflux-producer-*
+            kafkaflux-generator-*
+            profiles-*
+            checksums-*
+          generate_release_notes: true

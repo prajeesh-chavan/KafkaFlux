@@ -12,6 +12,26 @@ Starts Zookeeper, Kafka, and the producer. You're generating fake ecommerce even
 
 ---
 
+### Download
+
+Pre-built binaries are available for each [release](https://github.com/prajeesh-chavan/KafkaFlux/releases).
+
+```sh
+# JSON/CSV mode (no dependencies, static binary)
+curl -LO https://github.com/prajeesh-chavan/KafkaFlux/releases/latest/download/kafkaflux-producer-v0.2.0-linux-amd64
+chmod +x kafkaflux-producer-v0.2.0-linux-amd64
+SIMULATOR_MODE=json ./kafkaflux-producer-v0.2.0-linux-amd64
+
+# Kafka mode (requires librdkafka on the system)
+curl -LO https://github.com/prajeesh-chavan/KafkaFlux/releases/latest/download/kafkaflux-producer-v0.2.0-kafka-linux-amd64
+chmod +x kafkaflux-producer-v0.2.0-kafka-linux-amd64
+./kafkaflux-producer-v0.2.0-kafka-linux-amd64
+```
+
+> Replace `v0.2.0` with the latest version from the [releases page](https://github.com/prajeesh-chavan/KafkaFlux/releases).
+
+---
+
 ## Features
 
 - **50+ field types** — uuid, int, float, boolean, names, emails, phones, addresses, IPs, user agents, credit cards, lat/lng, sentences, distributions (normal, poisson, range), conditionals, weighted enums, state pools
