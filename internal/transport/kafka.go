@@ -1,4 +1,6 @@
-﻿package transport
+﻿//go:build cgo
+
+package transport
 
 import (
 	"context"
@@ -19,7 +21,7 @@ type KafkaPublisher struct {
 	metrics  *telemetry.Metrics
 }
 
-func NewKafkaPublisher(brokers string, inChan chan *engine.DataEvent) (*KafkaPublisher, error) {
+func NewKafkaPublisher(brokers string, inChan chan *engine.DataEvent) (DataPublisher, error) {
 	p, err := kafka.NewProducer(&kafka.ConfigMap{
 		"bootstrap.servers":            brokers,
 		"acks":                         "1",
