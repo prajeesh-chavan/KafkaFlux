@@ -1,0 +1,37 @@
+entity: gps_tracking
+topic: "telemetry.iot.gps_tracking"
+target_eps: 40
+dynamic_scaling: true
+
+chaos:
+  drop_percentage: 0.5
+  corrupt_fields: {}
+
+fields:
+  tracking_id:
+    type: uuid
+  device_id:
+    type: pool
+    pool: devices
+  latitude:
+    type: latitude
+  longitude:
+    type: longitude
+  speed:
+    type: range
+    min: 0
+    max: 120
+  heading:
+    type: range
+    min: 0
+    max: 359
+  altitude:
+    type: range
+    min: -50
+    max: 5000
+  accuracy:
+    type: range
+    min: 1
+    max: 50
+  timestamp:
+    type: timestamp
