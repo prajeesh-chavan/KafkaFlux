@@ -49,7 +49,6 @@ func Run() {
 	buildPublisher(cfg, eventChannel, &publisher)
 	publisher.SetBufferPool(bufPool)
 	publisher.SetMetrics(metrics)
-	defer publisher.Close()
 
 	// Resolve per-profile batch sizes from global default
 	if cfg.BatchSize > 0 {
@@ -74,6 +73,7 @@ func Run() {
 	pubCtx, pubCancel := context.WithCancel(ctx)
 	var workerWg sync.WaitGroup
 	var pubWg sync.WaitGroup
+	var dashWg sync.WaitGroup
 
 	metricsPort := cfg.Simulator.MetricsPort
 	if metricsPort == 0 {
@@ -83,7 +83,7 @@ func Run() {
 
 	publisher.Start(pubCtx, &pubWg, cfg.Simulator.Workers)
 	sim.Start(prodCtx, &workerWg)
-	sim.StartDashboard(pubCtx, &pubWg)
+	sim.StartDashboard(context.Background(), &dashWg)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
