@@ -79,6 +79,9 @@ func LoadProfiles(dir string, filter []string) ([]*EntityProfile, error) {
 			if !matchFilter(filter, relPath, p.Entity) {
 				continue
 			}
+		} else if !p.IsEnabled() {
+			slog.Debug("profile disabled", "entity", p.Entity, "file", file)
+			continue
 		}
 
 		profiles = append(profiles, p)
@@ -95,11 +98,6 @@ func loadProfile(file string) (*EntityProfile, error) {
 	var p EntityProfile
 	if err := yaml.Unmarshal(data, &p); err != nil {
 		return nil, fmt.Errorf("failed to parse yaml %s: %w", file, err)
-	}
-
-	if !p.IsEnabled() {
-		slog.Debug("profile disabled", "entity", p.Entity, "file", file)
-		return nil, nil
 	}
 
 	if p.Entity == "" {

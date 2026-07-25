@@ -34,7 +34,7 @@ Built for **load testing**, **demo environments**, **data pipeline development**
 ## Quick Start
 
 ```sh
-git clone https://github.com/prajeeshchavan/KafkaFlux
+git clone https://github.com/prajeesh-chavan/KafkaFlux
 cd KafkaFlux
 docker compose up
 ```
@@ -405,6 +405,14 @@ Environment variable overrides:
 
 ---
 
+## Example Profiles
+
+Built-in profiles are in the [`profiles/`](./profiles/) directory. The ecommerce profiles use topic `telemetry.ecommerce.<entity>` and cover orders, customers, payments, shipping, inventory, returns, and more. IoT profiles use topic `telemetry.iot.<entity>` and cover sensors, devices, and alerts.
+
+Each profile file is a standalone YAML that can be enabled, disabled, or modified independently. Add new profiles by creating new YAML files — no code changes needed.
+
+---
+
 ## Profile YAML
 
 Profiles define entities and their fields. Each field has a `type` and optional parameters.
@@ -450,7 +458,7 @@ Run `generator --help` for the full type reference.
 ## Development
 
 ```sh
-go test -count=1 ./...     # 67 tests across 14 test files
+go test -count=1 ./...     # 73 tests across 14 test files
 go vet ./...               # Static analysis
 go build ./...             # Verify compilation
 ```
