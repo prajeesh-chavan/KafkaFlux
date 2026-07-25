@@ -43,22 +43,7 @@ cd KafkaFlux
 docker compose up
 ```
 
-That's it. Zookeeper + Kafka + the simulator start together. You'll immediately see:
-
-```
-======================================================================
-     KAFKAFLUX EVENT STREAM SIMULATOR
-======================================================================
- System Uptime: 12s | Profiles: 8 | Transport: KAFKA
- Buffer Channel Load: [████................] 21% (21212 / 100000)
-----------------------------------------------------------------------
-ENTITY           TOPIC                          CURR_EPS     TOTAL_EVENTS
-----------------------------------------------------------------------
-customers        telemetry.ecommerce.customers   10           112
-orders           telemetry.ecommerce.orders      50           524
-payments         telemetry.ecommerce.payments    45           478
-...
-```
+That's it. Zookeeper + Kafka + the simulator start together with a live dashboard.
 
 Open another terminal:
 
@@ -121,15 +106,14 @@ KafkaFlux treats test data like **infrastructure — not a script.** Declarative
 ## Architecture
 
 ```mermaid
-flowchart LR
+graph LR
     A[config.yaml] --> B[app.Run]
     B --> C[engine.Simulator]
     C --> D[transport.Publisher]
-    D --> E[(Kafka / File)]
-    
-    B -.-> F[slog + Metrics HTTP]
-    D -.-> F
-    C -.-> G[sync.Pool buffer reuse]
+    D --> E[Kafka / File]
+    B --> F[telemetry]
+    C --> G[pool.BufferPool]
+    D --> F
 ```
 
 ### Package Map
@@ -364,12 +348,19 @@ The buffer pool (`sync.Pool`) reduces allocations by ~60% compared to allocating
 KafkaFlux is domain-agnostic — the schema is whatever YAML you write. The included 33 profiles are a starter set for ecommerce and IoT, but you can model anything:
 
 ```mermaid
-erDiagram
-    CUSTOMERS ||--o{ ORDERS : places
-    ORDERS ||--o{ PAYMENTS : has
-    ORDERS ||--o{ SHIPMENTS : ships
-    PRODUCTS ||--o{ INVENTORY : tracked_in
-    CUSTOMERS ||--o{ CUSTOMER_EVENTS : generates
+graph LR
+    subgraph profiles
+        customers
+        orders
+        payments
+        shipments
+        products
+        inventory
+    end
+    orders --> customers
+    payments --> orders
+    shipments --> orders
+    inventory --> products
 ```
 
 Replace these with your own entities — healthcare patients, fintech transactions, gaming events, server logs, or any domain. Relationships between entities work the same way regardless of domain.
