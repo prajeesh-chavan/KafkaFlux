@@ -103,10 +103,9 @@ graph LR
     A[config.yaml] --> B[app.Run]
     B --> C[engine.Simulator]
     C --> D[transport.Publisher]
-    D --> E[Kafka / File]
+    D --> E[Kafka]
     B --> F[telemetry]
-    C --> G[pool.BufferPool]
-    D --> F
+    C --> G[pool]
 ```
 
 ### Package Map
@@ -341,19 +340,15 @@ The buffer pool (`sync.Pool`) reduces allocations by ~60% compared to allocating
 KafkaFlux is domain-agnostic — the schema is whatever YAML you write. The included 33 profiles are a starter set for ecommerce and IoT, but you can model anything:
 
 ```mermaid
-graph LR
-    subgraph profiles
-        customers
-        orders
-        payments
-        shipments
-        products
-        inventory
-    end
-    orders --> customers
-    payments --> orders
-    shipments --> orders
-    inventory --> products
+erDiagram
+    CUSTOMERS ||--o{ ORDERS : places
+    ORDERS ||--o{ PAYMENTS : has
+    ORDERS ||--o{ SHIPMENTS : ships
+    PRODUCTS ||--o{ INVENTORY : tracked_in
+    CUSTOMERS ||--o{ CUSTOMER_EVENTS : generates
+    PRODUCTS ||--o{ PRODUCT_REVIEWS : has
+    VENDORS ||--o{ PRODUCTS : supplies
+    CARRIERS ||--o{ SHIPMENTS : delivers
 ```
 
 Replace these with your own entities — healthcare patients, fintech transactions, gaming events, server logs, or any domain. Relationships between entities work the same way regardless of domain.
