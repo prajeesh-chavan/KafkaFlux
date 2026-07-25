@@ -43,14 +43,7 @@ cd KafkaFlux
 docker compose up
 ```
 
-That's it. Zookeeper + Kafka + the simulator start together with a live dashboard.
-
-Open another terminal:
-
-```sh
-curl localhost:9099/              # JSON status dashboard
-curl localhost:9099/metrics       # Prometheus metrics
-```
+That's it. Zookeeper + Kafka + the simulator start together.
 
 **Without Kafka (JSON output):**
 
