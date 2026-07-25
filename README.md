@@ -559,8 +559,6 @@ Contributions welcome:
 - New transport implementations (Kinesis, PubSub, Pulsar)
 - Bug fixes and docs improvements
 
-**MIT License** — free for personal and commercial use.
-
 ---
 
 ## Tech Stack
