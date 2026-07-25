@@ -361,23 +361,20 @@ The buffer pool (`sync.Pool`) reduces allocations by ~60% compared to allocating
 
 ## Data Model
 
-33 entity profiles organized by domain, all sharing IDs through state pools:
+KafkaFlux is domain-agnostic — the schema is whatever YAML you write. The included 33 profiles are a starter set for ecommerce and IoT, but you can model anything:
 
 ```mermaid
 erDiagram
     CUSTOMERS ||--o{ ORDERS : places
     ORDERS ||--o{ PAYMENTS : has
     ORDERS ||--o{ SHIPMENTS : ships
-    ORDERS ||--o{ ORDER_ITEMS : contains
-    PRODUCTS ||--o{ ORDER_ITEMS : listed_in
     PRODUCTS ||--o{ INVENTORY : tracked_in
     CUSTOMERS ||--o{ CUSTOMER_EVENTS : generates
-    PRODUCTS ||--o{ PRODUCT_REVIEWS : has
-    VENDORS ||--o{ PRODUCTS : supplies
-    CARRIERS ||--o{ SHIPMENTS : delivers
 ```
 
-| Profile | Topic | EPS | References |
+Replace these with your own entities — healthcare patients, fintech transactions, gaming events, server logs, or any domain. Relationships between entities work the same way regardless of domain.
+
+| Example Profile | Topic | EPS | References |
 |---------|-------|-----|------------|
 | customers | telemetry.ecommerce.customers | 10 | — |
 | orders | telemetry.ecommerce.orders | 50 | customers, sales_channels |
@@ -475,9 +472,20 @@ Environment variable overrides:
 
 ## Example Profiles
 
-Built-in profiles are in the [`profiles/`](./profiles/) directory. The ecommerce profiles use topic `telemetry.ecommerce.<entity>` and cover orders, customers, payments, shipping, inventory, returns, and more. IoT profiles use topic `telemetry.iot.<entity>` and cover sensors, devices, and alerts.
+The included starter profiles live in [`profiles/`](./profiles/) and cover two domains to get you started. Treat them as templates — delete them, modify them, or add your own.
 
-Each profile file is a standalone YAML that can be enabled, disabled, or modified independently. Add new profiles by creating new YAML files — no code changes needed.
+```
+profiles/
+├── ecommerce/           # starter templates — 30 entities
+│   ├── orders.yaml
+│   ├── customers.yaml
+│   └── ...              # you can remove these entirely
+└── iot/                 # starter templates — 3 entities
+    ├── sensors.yaml
+    └── ...
+```
+
+Each profile file is a standalone YAML. Add new profiles by creating new files in any subdirectory — no code changes needed. Your schema, your domain, your topic naming convention.
 
 ---
 
