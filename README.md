@@ -337,7 +337,9 @@ The buffer pool (`sync.Pool`) reduces allocations by ~60% compared to allocating
 
 ## Data Model
 
-KafkaFlux is domain-agnostic — the schema is whatever YAML you write. The included 33 profiles are a starter set for ecommerce and IoT, but you can model anything:
+The ERD below shows how the included starter profiles relate to each other — `CUSTOMERS` places `ORDERS`, `ORDERS` have `PAYMENTS` and `SHIPMENTS`, `PRODUCTS` are tracked in `INVENTORY`. Each arrow represents a cross-entity reference maintained automatically by state pools.
+
+KafkaFlux is domain-agnostic — replace these with any entities you need. Healthcare, fintech, gaming, logs, all work the same way:
 
 ```mermaid
 erDiagram
